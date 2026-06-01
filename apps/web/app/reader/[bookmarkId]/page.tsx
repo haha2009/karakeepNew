@@ -23,14 +23,24 @@ export default function ReaderViewPage() {
   const params = useParams<{ bookmarkId: string }>();
   const bookmarkId = params.bookmarkId;
   const { data: highlights } = useQuery(
-    api.highlights.getForBookmark.queryOptions({
-      bookmarkId,
-    }),
+    api.highlights.getForBookmark.queryOptions(
+      {
+        bookmarkId,
+      },
+      {
+        enabled: !!bookmarkId,
+      },
+    ),
   );
   const { data: bookmark } = useQuery(
-    api.bookmarks.getBookmark.queryOptions({
-      bookmarkId,
-    }),
+    api.bookmarks.getBookmark.queryOptions(
+      {
+        bookmarkId,
+      },
+      {
+        enabled: !!bookmarkId,
+      },
+    ),
   );
 
   const { data: session } = useSession();
