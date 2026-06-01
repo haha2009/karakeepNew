@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -42,14 +43,22 @@ import { contentRendererRegistry } from "./content-renderers";
 import ReaderSettingsPopover from "./ReaderSettingsPopover";
 import ReaderView from "./ReaderView";
 
-function CustomRendererErrorFallback({ error }: { error: Error }) {
+function CustomRendererErrorFallback({
+  error,
+  onSwitchToReader,
+}: {
+  error: Error;
+  onSwitchToReader: () => void;
+}) {
   return (
-    <div className="flex h-full w-full items-center justify-center p-4">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
       <Alert variant="destructive" className="max-w-md">
         <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Renderer Error</AlertTitle>
+        <AlertTitle>Content Renderer Error</AlertTitle>
         <AlertDescription>
-          Failed to load custom content renderer.{" "}
+          <p className="mb-2 text-sm">
+            The custom content renderer failed to load the content.
+          </p>
           <details className="mt-2">
             <summary className="cursor-pointer text-xs">
               Technical details
@@ -58,6 +67,13 @@ function CustomRendererErrorFallback({ error }: { error: Error }) {
           </details>
         </AlertDescription>
       </Alert>
+      <button
+        onClick={onSwitchToReader}
+        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      >
+        <BookOpen className="h-4 w-4" />
+        Switch to Reader View
+      </button>
     </div>
   );
 }
@@ -128,6 +144,22 @@ export default function LinkContentSection({
   const [section, setSection] = useQueryState("section", {
     defaultValue: defaultSection,
   });
+
+  // When the URL has a stale ?section=cached parameter but a custom content
+  // renderer is available (e.g., from before the renderer was registered),
+  // auto-correct to use the renderer instead of a failed cached view.
+  const resolvedSection =
+    availableRenderers.length > 0 && section === "cached"
+      ? availableRenderers[0].id
+      : section;
+
+  // Sync URL to remove the stale parameter
+  useEffect(() => {
+    if (resolvedSection !== section) {
+      setSection(resolvedSection);
+    }
+  }, [resolvedSection, section, setSection]);
+
   const { data: session } = useSession();
   const isOwner = session?.user?.id === bookmark.userId;
 
@@ -138,15 +170,24 @@ export default function LinkContentSection({
   let content;
 
   // Check if current section is a custom renderer
-  const customRenderer = availableRenderers.find((r) => r.id === section);
+  const customRenderer = availableRenderers.find(
+    (r) => r.id === resolvedSection,
+  );
   if (customRenderer) {
     const RendererComponent = customRenderer.component;
     content = (
-      <ErrorBoundary FallbackComponent={CustomRendererErrorFallback}>
+      <ErrorBoundary
+        fallbackRender={({ error }) => (
+          <CustomRendererErrorFallback
+            error={error}
+            onSwitchToReader={() => setSection("cached")}
+          />
+        )}
+      >
         <RendererComponent bookmark={bookmark} />
       </ErrorBoundary>
     );
-  } else if (section === "cached") {
+  } else if (resolvedSection === "cached") {
     content = (
       <div className="h-full w-full overflow-y-auto overflow-x-hidden px-3 sm:px-6">
         <ReaderView
@@ -161,11 +202,11 @@ export default function LinkContentSection({
         />
       </div>
     );
-  } else if (section === "archive") {
+  } else if (resolvedSection === "archive") {
     content = <FullPageArchiveSection link={bookmark.content} />;
-  } else if (section === "video") {
+  } else if (resolvedSection === "video") {
     content = <VideoSection link={bookmark.content} />;
-  } else if (section === "pdf") {
+  } else if (resolvedSection === "pdf") {
     content = <PDFSection link={bookmark.content} />;
   } else {
     content = <ScreenshotSection link={bookmark.content} />;
@@ -174,7 +215,7 @@ export default function LinkContentSection({
   return (
     <div className="flex h-full w-full min-w-0 flex-col items-center overflow-hidden">
       <div className="flex w-full items-center justify-center gap-2 border-b px-3 py-1.5">
-        <Select onValueChange={setSection} value={section}>
+        <Select onValueChange={setSection} value={resolvedSection}>
           <SelectTrigger className="w-fit">
             <span className="mr-2">
               <SelectValue />
@@ -241,7 +282,7 @@ export default function LinkContentSection({
             </SelectGroup>
           </SelectContent>
         </Select>
-        {section === "cached" && (
+        {resolvedSection === "cached" && (
           <>
             <ReaderSettingsPopover />
             <Tooltip>
@@ -257,7 +298,7 @@ export default function LinkContentSection({
             </Tooltip>
           </>
         )}
-        {section === "archive" && (
+        {resolvedSection === "archive" && (
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex h-10 items-center gap-1 rounded-md border border-blue-500/50 bg-blue-50 px-3 text-blue-700 dark:bg-blue-950 dark:text-blue-300">

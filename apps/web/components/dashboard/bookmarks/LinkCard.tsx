@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useUserSettings } from "@/lib/userSettings";
@@ -48,6 +49,18 @@ function LinkImage({
 }) {
   const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
   const link = bookmark.content;
+  const [imgUrl, setImgUrl] = React.useState<string | null>(() => {
+    const details = getBookmarkLinkImageUrl(link);
+    return details ? details.url : null;
+  });
+  const [triedFallback, setTriedFallback] = React.useState(false);
+
+  const handleError = React.useCallback(() => {
+    if (!triedFallback && link.imageUrl) {
+      setTriedFallback(true);
+      setImgUrl(link.imageUrl);
+    }
+  }, [triedFallback, link.imageUrl]);
 
   const imgComponent = (url: string, unoptimized: boolean) => (
     <Image
@@ -56,16 +69,15 @@ function LinkImage({
       alt="card banner"
       fill={true}
       src={url}
+      onError={handleError}
     />
   );
-
-  const imageDetails = getBookmarkLinkImageUrl(link);
 
   let img: React.ReactNode;
   if (isBookmarkStillCrawling(bookmark)) {
     img = imgComponent("/blur.avif", false);
-  } else if (imageDetails) {
-    img = imgComponent(imageDetails.url, true);
+  } else if (imgUrl) {
+    img = imgComponent(imgUrl, true);
   } else {
     // No image found
     // A dummy white pixel for when there's no image.

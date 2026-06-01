@@ -929,7 +929,11 @@
     "crawling_in_progress": "正在获取页面内容……",
     "continue_reading": "从上次结束的地方继续",
     "continue_reading_percent": "从上次结束的地方继续（{{percent}}%）",
-    "continue_button": "继续"
+    "continue_button": "继续",
+    "renderer_error": "内容渲染器错误",
+    "renderer_error_description": "自定义内容渲染器加载内容失败。",
+    "renderer_error_details": "技术细节",
+    "switch_to_reader": "切换到阅读器视图"
   },
   "editor": {
     "quickly_focus": "您可以按⌘ + E快速聚焦到此字段",
@@ -1168,3 +1172,4 @@
     "generating": "正在生成..."
   }
 }
+

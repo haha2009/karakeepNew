@@ -1075,7 +1075,11 @@
     "crawling_in_progress": "Pridobivam vsebino strani …",
     "continue_reading": "Nadaljuj, kjer si končal",
     "continue_reading_percent": "Nadaljuj, kjer si končal ({{percent}} %)",
-    "continue_button": "Nadaljuj"
+    "continue_button": "Nadaljuj",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "highlights": {
     "no_highlights": "Še nimaš nobenih poudarkov."
@@ -1168,3 +1172,4 @@
     "generating": "Ustvarjam ..."
   }
 }
+

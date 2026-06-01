@@ -981,7 +981,11 @@
     "crawling_in_progress": "Λήψη περιεχομένου σελίδας…",
     "continue_reading": "Συνεχίστε από εκεί που σταματήσατε",
     "continue_reading_percent": "Συνεχίστε από εκεί που σταματήσατε ({{percent}}%)",
-    "continue_button": "Συνεχίστε"
+    "continue_button": "Συνεχίστε",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "Μπορείτε να εστιάσετε γρήγορα σε αυτό το πεδίο πατώντας ⌘ + E",
@@ -1168,3 +1172,4 @@
     "generating": "Δημιουργία..."
   }
 }
+

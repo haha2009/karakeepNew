@@ -932,7 +932,11 @@
     "crawling_in_progress": "Dohvaćam sadržaj stranice…",
     "continue_reading": "Nastavi gdje si stao",
     "continue_reading_percent": "Nastavi gdje si stao ({{percent}}%)",
-    "continue_button": "Nastavi"
+    "continue_button": "Nastavi",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "Možeš brzo fokusirati ovo polje pritiskanjem ⌘ + E",
@@ -1168,3 +1172,4 @@
     "generating": "Generiram..."
   }
 }
+

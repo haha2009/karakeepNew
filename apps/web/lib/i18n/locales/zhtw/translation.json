@@ -929,7 +929,11 @@
     "crawling_in_progress": "正在抓取頁面內容…",
     "continue_reading": "從上次中斷的地方繼續",
     "continue_reading_percent": "從上次中斷的地方繼續（{{percent}}%）",
-    "continue_button": "繼續"
+    "continue_button": "繼續",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "您可以按下 ⌘ + E 快速聚焦此欄位",
@@ -1168,3 +1172,4 @@
     "generating": "正在產生..."
   }
 }
+

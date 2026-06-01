@@ -17,6 +17,7 @@ import serverConfig from "@karakeep/shared/config";
 
 import { createRateLimitMiddleware } from "./lib/rateLimit";
 import { createTracingMiddleware } from "./lib/tracing";
+import { createLoggingMiddleware } from "./lib/logger";
 import {
   apiErrorsTotalCounter,
   apiRequestDurationSummary,
@@ -93,6 +94,8 @@ export const createCallerFactory = t.createCallerFactory;
 // Base router and procedure helpers
 export const router = t.router;
 export const procedure = t.procedure
+  // Dev-mode request logging (outermost)
+  .use(createLoggingMiddleware())
   .use(function isDemoMode(opts) {
     if (serverConfig.demoMode && opts.type == "mutation") {
       throw new TRPCError({

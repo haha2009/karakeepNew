@@ -981,7 +981,11 @@
     "crawling_in_progress": "جاري جلب محتوى الصفحة…",
     "continue_reading": "استمر من حيث توقفت",
     "continue_reading_percent": "استمر من حيث توقفت ({{percent}}%)",
-    "continue_button": "استمر"
+    "continue_button": "استمر",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "يمكنك التركيز سريعاً على هذا الحقل بالضغط على ⌘ + E",
@@ -1168,3 +1172,4 @@
     "generating": "جارٍ الإنشاء..."
   }
 }
+

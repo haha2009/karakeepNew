@@ -929,7 +929,11 @@
     "crawling_in_progress": "Récupération du contenu de la page…",
     "continue_reading": "Continuez là où vous vous êtes arrêté",
     "continue_reading_percent": "Continuez là où vous vous êtes arrêté ({{percent}} %)",
-    "continue_button": "Continuer"
+    "continue_button": "Continuer",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "Vous pouvez rapidement vous concentrer sur ce champ en appuyant sur ⌘ + E",
@@ -1168,3 +1172,4 @@
     "generating": "Génération en cours..."
   }
 }
+

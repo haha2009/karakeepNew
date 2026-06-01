@@ -957,7 +957,11 @@
     "crawling_in_progress": "در حال دریافت محتوای صفحه…",
     "continue_reading": "ادامه از جایی که متوقف شدید",
     "continue_reading_percent": "ادامه از جایی که متوقف شدید ({{percent}}%)",
-    "continue_button": "ادامه"
+    "continue_button": "ادامه",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "با فشردن ⌘ + E می‌توانید به سرعت روی این فیلد تمرکز کنید",
@@ -1144,3 +1148,4 @@
     "generating": "درحال تولید..."
   }
 }
+

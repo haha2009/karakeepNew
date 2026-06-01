@@ -1,6 +1,7 @@
 import * as dns from "dns";
 import { TRPCError } from "@trpc/server";
 import { count, eq, or, sum } from "drizzle-orm";
+import OpenAI from "openai";
 import { z } from "zod";
 
 import {
@@ -824,6 +825,34 @@ export const adminAppRouter = router({
           outputSchema: input.outputSchema ?? "json",
         });
       }
+
+      return { success: true };
+    }),
+
+  testProviderConfig: adminAiProviderProcedure
+    .input(
+      z.object({
+        baseUrl: z.string().optional(),
+        apiKey: z.string(),
+        textModel: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const openai = new OpenAI({
+        apiKey: input.apiKey,
+        baseURL: input.baseUrl || undefined,
+      });
+
+      await openai.chat.completions.create(
+        {
+          model: input.textModel || "gpt-3.5-turbo",
+          messages: [
+            { role: "user", content: "respond with just the word ok" },
+          ],
+          max_tokens: 10,
+        },
+        { signal: AbortSignal.timeout(15000) },
+      );
 
       return { success: true };
     }),

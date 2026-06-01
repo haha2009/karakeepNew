@@ -1,8 +1,9 @@
 import { Instagram } from "lucide-react";
 
-import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
+import { ZBookmark } from "@karakeep/shared/types/bookmarks";
 
 import { ContentRenderer } from "./types";
+import { canRenderLinkType } from "./renderer-utils";
 
 type InstagramMediaType = "p" | "reel" | "reels" | "tv";
 
@@ -36,22 +37,16 @@ function extractInstagramMedia(
 }
 
 function canRenderInstagram(bookmark: ZBookmark): boolean {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return false;
-  }
-
+  if (!canRenderLinkType(bookmark)) return false;
   return extractInstagramMedia(bookmark.content.url) !== null;
 }
 
 function InstagramRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return null;
-  }
-
-  const media = extractInstagramMedia(bookmark.content.url);
-  if (!media) {
-    return null;
-  }
+  const media =
+    bookmark.content.type === "link"
+      ? extractInstagramMedia(bookmark.content.url)
+      : null;
+  if (!media) return null;
 
   const mediaType = media.type === "reels" ? "reel" : media.type;
   const embedUrl = `https://www.instagram.com/${mediaType}/${media.shortcode}/embed/captioned`;

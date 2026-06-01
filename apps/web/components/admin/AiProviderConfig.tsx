@@ -28,6 +28,7 @@ export default function AiProviderConfig() {
   const [textModel, setTextModel] = useState("");
   const [outputSchema, setOutputSchema] = useState("json");
   const [saved, setSaved] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -42,19 +43,43 @@ export default function AiProviderConfig() {
     ...api.admin.saveProviderConfig.mutationOptions(),
     onSuccess: () => {
       setSaved(true);
+      setTestError(null);
       queryClient.invalidateQueries(api.admin.getProviderConfig.pathFilter());
       setTimeout(() => setSaved(false), 2000);
+    },
+    onError: (err) => {
+      setTestError(err instanceof Error ? err.message : "保存失败");
+    },
+  });
+
+  const testMutation = useMutation({
+    ...api.admin.testProviderConfig.mutationOptions(),
+    onSuccess: () => {
+      // Test passed — proceed to save
+      saveMutation.mutate({
+        baseUrl: baseUrl || undefined,
+        apiKey: apiKey || undefined,
+        textModel: textModel || undefined,
+        outputSchema: outputSchema as "structured" | "json" | "plain",
+      });
+    },
+    onError: (err) => {
+      setTestError(
+        err instanceof Error ? err.message : "连接测试失败，请检查配置",
+      );
     },
   });
 
   const handleSave = () => {
-    saveMutation.mutate({
+    setTestError(null);
+    testMutation.mutate({
       baseUrl: baseUrl || undefined,
-      apiKey: apiKey || undefined,
+      apiKey: apiKey,
       textModel: textModel || undefined,
-      outputSchema: outputSchema as "structured" | "json" | "plain",
     });
   };
+
+  const isPending = testMutation.isPending || saveMutation.isPending;
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,12 +148,16 @@ export default function AiProviderConfig() {
           </div>
 
           <div className="flex items-center gap-3 pt-2">
-            <Button onClick={handleSave} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "保存中..." : "保存"}
+            <Button onClick={handleSave} disabled={isPending}>
+              {testMutation.isPending
+                ? "测试连接中..."
+                : saveMutation.isPending
+                  ? "保存中..."
+                  : "保存"}
             </Button>
             {saved && <span className="text-sm text-green-600">已保存 ✓</span>}
-            {saveMutation.isError && (
-              <span className="text-sm text-red-600">保存失败</span>
+            {testError && (
+              <span className="text-sm text-red-600">{testError}</span>
             )}
           </div>
         </div>

@@ -1075,7 +1075,11 @@
     "crawling_in_progress": "Ag fáil ábhar an leathanaigh…",
     "continue_reading": "Lean ar aghaidh san áit ar fágadh thú",
     "continue_reading_percent": "Lean ar aghaidh san áit ar fágadh thú ({{percent}}%)",
-    "continue_button": "Lean ar aghaidh"
+    "continue_button": "Lean ar aghaidh",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "dialogs": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Ag giniúint..."
   }
 }
+

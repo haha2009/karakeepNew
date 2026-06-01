@@ -15,24 +15,26 @@ The system consists of:
 To add support for a new website or content type:
 
 1. Create a new file (e.g., `MyWebsiteRenderer.tsx`)
-2. Implement the `ContentRenderer` interface:
+2. Implement the `ContentRenderer` interface using shared utilities:
 
 ```typescript
 import { ContentRenderer } from "./types";
-import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
-import { MyIcon } from "lucide-react";
+import { canRenderLinkType, extractFromUrl } from "./renderer-utils";
+
+const URL_PATTERNS = [/mywebsite\.com\/(.+)/];
 
 function canRenderMyWebsite(bookmark: ZBookmark): boolean {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return false;
-  }
-
-  // Add your URL pattern matching logic here
-  return bookmark.content.url.includes("mywebsite.com");
+  if (!canRenderLinkType(bookmark)) return false;
+  return extractFromUrl(bookmark.content.url, URL_PATTERNS) !== null;
 }
 
 function MyWebsiteRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
-  // Your custom rendering logic here
+  const id = bookmark.content.type === "link"
+    ? extractFromUrl(bookmark.content.url, URL_PATTERNS)
+    : null;
+
+  if (!id) return null;
+
   return <div>Custom content for MyWebsite</div>;
 }
 
@@ -53,3 +55,31 @@ import { myWebsiteRenderer } from "./MyWebsiteRenderer";
 
 contentRendererRegistry.register(myWebsiteRenderer);
 ```
+
+## Error Handling
+
+Custom renderers are wrapped in an `<ErrorBoundary>` by `LinkContentSection.tsx`. If a renderer throws during rendering, the fallback UI shows:
+
+- Error message with expandable technical details
+- **"Switch to Reader View"** button — clicking it switches the view to the cached Reader View
+
+For renderer-specific error handling (e.g., iframe load failures), use React state:
+
+```typescript
+function MyRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
+  const [loadError, setLoadError] = useState(false);
+
+  if (loadError) {
+    return <a href={url} target="_blank" rel="noopener noreferrer">View original</a>;
+  }
+
+  return <iframe src={url} onError={() => setLoadError(true)} />;
+}
+```
+
+## Shared Utilities
+
+- `canRenderLinkType(bookmark)` — checks if bookmark type is a link
+- `extractFromUrl(url, patterns)` — extracts first capture group from URL regex patterns
+
+Import from `./renderer-utils`.

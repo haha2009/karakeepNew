@@ -1078,7 +1078,11 @@
     "crawling_in_progress": "Đang tìm nạp nội dung trang…",
     "continue_reading": "Tiếp tục từ chỗ bạn đã dừng lại",
     "continue_reading_percent": "Tiếp tục từ chỗ bạn đã dừng lại ({{percent}}%)",
-    "continue_button": "Tiếp tục"
+    "continue_button": "Tiếp tục",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "bookmark_editor": {
     "title": "Sửa dấu trang",
@@ -1168,3 +1172,4 @@
     "failed_to_load": "Không tải được thống kê Tổng Kết của bạn"
   }
 }
+

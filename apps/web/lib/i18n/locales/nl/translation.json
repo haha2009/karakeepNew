@@ -825,7 +825,11 @@
     "crawling_in_progress": "Pagina-inhoud ophalen…",
     "continue_reading": "Ga verder waar je was gebleven",
     "continue_reading_percent": "Ga verder waar je was gebleven ({{percent}}%)",
-    "continue_button": "Ga door"
+    "continue_button": "Ga door",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "text_toolbar": {
@@ -1168,3 +1172,4 @@
     "generating": "Bezig met genereren..."
   }
 }
+

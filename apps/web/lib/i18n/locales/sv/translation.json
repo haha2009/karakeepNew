@@ -1020,7 +1020,11 @@
     "crawling_in_progress": "Hämtar sidans innehåll …",
     "continue_reading": "Fortsätt där du slutade",
     "continue_reading_percent": "Fortsätt där du slutade ({{percent}} %)",
-    "continue_button": "Fortsätt"
+    "continue_button": "Fortsätt",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "dialogs": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Genererar..."
   }
 }
+

@@ -963,6 +963,10 @@
     "continue_reading": "Continue where you left off",
     "continue_reading_percent": "Continue where you left off ({{percent}}%)",
     "continue_button": "Continue",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View",
     "tabs": {
       "content": "Content",
       "details": "Details"
@@ -1164,3 +1168,4 @@
     "focus_search_alt": "Focus search"
   }
 }
+

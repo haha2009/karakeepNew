@@ -1,44 +1,28 @@
 import { Video } from "lucide-react";
 
-import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
+import { ZBookmark } from "@karakeep/shared/types/bookmarks";
 
 import { ContentRenderer } from "./types";
+import { canRenderLinkType, extractFromUrl } from "./renderer-utils";
 
-function extractTikTokVideoId(url: string): string | null {
-  const patterns = [
-    /tiktok\.com\/@[^/]+\/video\/(\d+)/,
-    /tiktok\.com\/t\/([A-Za-z0-9]+)/,
-    /vm\.tiktok\.com\/([A-Za-z0-9]+)/,
-    /tiktok\.com\/v\/(\d+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  return null;
-}
+const VIDEO_ID_PATTERNS = [
+  /tiktok\.com\/@[^/]+\/video\/(\d+)/,
+  /tiktok\.com\/t\/([A-Za-z0-9]+)/,
+  /vm\.tiktok\.com\/([A-Za-z0-9]+)/,
+  /tiktok\.com\/v\/(\d+)/,
+];
 
 function canRenderTikTok(bookmark: ZBookmark): boolean {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return false;
-  }
-
-  const url = bookmark.content.url;
-  return extractTikTokVideoId(url) !== null;
+  if (!canRenderLinkType(bookmark)) return false;
+  return extractFromUrl(bookmark.content.url, VIDEO_ID_PATTERNS) !== null;
 }
 
 function TikTokRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return null;
-  }
-
-  const videoId = extractTikTokVideoId(bookmark.content.url);
-  if (!videoId) {
-    return null;
-  }
+  const videoId =
+    bookmark.content.type === "link"
+      ? extractFromUrl(bookmark.content.url, VIDEO_ID_PATTERNS)
+      : null;
+  if (!videoId) return null;
 
   // TikTok embed URL format
   const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;

@@ -929,7 +929,11 @@
     "crawling_in_progress": "Obteniendo contenido de la página…",
     "continue_reading": "Continúa donde lo dejaste",
     "continue_reading_percent": "Continúa donde lo dejaste ({{percent}}%)",
-    "continue_button": "Continuar"
+    "continue_button": "Continuar",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "multiple_urls_dialog_title": "¿Importar URLs como marcadores independientes?",
@@ -1168,3 +1172,4 @@
     "generating": "Generando..."
   }
 }
+

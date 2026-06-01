@@ -988,7 +988,11 @@
     "crawling_in_progress": "Получаю содержимое страницы…",
     "continue_reading": "Продолжить с места, где остановились",
     "continue_reading_percent": "Продолжить с места, где остановились ({{percent}}%)",
-    "continue_button": "Продолжить"
+    "continue_button": "Продолжить",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "toasts": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Генерируется..."
   }
 }
+

@@ -10,17 +10,22 @@ import {
 import { toWebReadableStream } from "./upload";
 
 export async function serveAsset(c: Context, assetId: string, userId: string) {
-  const [metadata, size] = await Promise.all([
-    readAssetMetadata({
-      userId,
-      assetId,
-    }),
-
-    getAssetSize({
-      userId,
-      assetId,
-    }),
-  ]);
+  let metadata, size;
+  try {
+    [metadata, size] = await Promise.all([
+      readAssetMetadata({
+        userId,
+        assetId,
+      }),
+      getAssetSize({
+        userId,
+        assetId,
+      }),
+    ]);
+  } catch {
+    c.status(404);
+    return c.body(null);
+  }
 
   // Default Headers
   c.header("Content-type", metadata.contentType);

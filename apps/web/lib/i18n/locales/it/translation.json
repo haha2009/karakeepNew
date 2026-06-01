@@ -988,7 +988,11 @@
     "crawling_in_progress": "Recupero del contenuto della pagina…",
     "continue_reading": "Continua da dove hai lasciato",
     "continue_reading_percent": "Continua da dove hai lasciato ({{percent}}%)",
-    "continue_button": "Continua"
+    "continue_button": "Continua",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "toasts": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Generazione in corso..."
   }
 }
+

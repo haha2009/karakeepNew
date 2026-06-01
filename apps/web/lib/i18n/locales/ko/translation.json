@@ -200,7 +200,11 @@
     "crawling_in_progress": "페이지 콘텐츠 가져오는 중…",
     "continue_reading": "이어서 읽기",
     "continue_reading_percent": "이어서 읽기 ({{percent}}%)",
-    "continue_button": "계속"
+    "continue_button": "계속",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "⌘ + E를 누르면 이 필드에 초점이 옮겨집니다",
@@ -1168,3 +1172,4 @@
     "generating": "생성 중..."
   }
 }
+

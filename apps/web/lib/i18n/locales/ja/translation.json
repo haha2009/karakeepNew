@@ -978,7 +978,11 @@
     "crawling_in_progress": "ページコンテンツを取得中…",
     "continue_reading": "続きから再開",
     "continue_reading_percent": "続きから再開（{{percent}}%）",
-    "continue_button": "続ける"
+    "continue_button": "続ける",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "quickly_focus": "⌘ + E を押すと、このフィールドにすばやくフォーカスできます",
@@ -1168,3 +1172,4 @@
     "generating": "作成中..."
   }
 }
+

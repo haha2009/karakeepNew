@@ -988,7 +988,11 @@
     "crawling_in_progress": "Henter sideindhold…",
     "continue_reading": "Fortsæt, hvor du slap",
     "continue_reading_percent": "Fortsæt, hvor du slap ({{percent}}%)",
-    "continue_button": "Fortsæt"
+    "continue_button": "Fortsæt",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "toasts": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Genererer..."
   }
 }
+

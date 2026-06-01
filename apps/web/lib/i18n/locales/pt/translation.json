@@ -972,7 +972,11 @@
     "crawling_in_progress": "Buscando conteúdo da página…",
     "continue_reading": "Continue de onde parou",
     "continue_reading_percent": "Continue de onde parou ({{percent}}%)",
-    "continue_button": "Continuar"
+    "continue_button": "Continuar",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "editor": {
     "new_item": "NOVO ITEM",
@@ -1168,3 +1172,4 @@
     "generating": "Gerando..."
   }
 }
+

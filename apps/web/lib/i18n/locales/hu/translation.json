@@ -1037,7 +1037,11 @@
     "crawling_in_progress": "Oldaltartalom lekérése…",
     "continue_reading": "Folytasd, ahol abbahagytad",
     "continue_reading_percent": "Folytasd, ahol abbahagytad ({{percent}}%)",
-    "continue_button": "Folytatás"
+    "continue_button": "Folytatás",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "dialogs": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Generálás..."
   }
 }
+

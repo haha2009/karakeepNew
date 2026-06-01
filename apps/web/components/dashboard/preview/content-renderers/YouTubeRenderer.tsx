@@ -1,43 +1,27 @@
 import { Play } from "lucide-react";
 
-import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
+import { ZBookmark } from "@karakeep/shared/types/bookmarks";
 
 import { ContentRenderer } from "./types";
+import { canRenderLinkType, extractFromUrl } from "./renderer-utils";
 
-function extractYouTubeVideoId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /youtube\.com\/v\/([^&\n?#]+)/,
-    /youtube\.com\/shorts\/([^&\n?#]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  return null;
-}
+const VIDEO_ID_PATTERNS = [
+  /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+  /youtube\.com\/v\/([^&\n?#]+)/,
+  /youtube\.com\/shorts\/([^&\n?#]+)/,
+];
 
 function canRenderYouTube(bookmark: ZBookmark): boolean {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return false;
-  }
-
-  const url = bookmark.content.url;
-  return extractYouTubeVideoId(url) !== null;
+  if (!canRenderLinkType(bookmark)) return false;
+  return extractFromUrl(bookmark.content.url, VIDEO_ID_PATTERNS) !== null;
 }
 
 function YouTubeRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return null;
-  }
-
-  const videoId = extractYouTubeVideoId(bookmark.content.url);
-  if (!videoId) {
-    return null;
-  }
+  const videoId =
+    bookmark.content.type === "link"
+      ? extractFromUrl(bookmark.content.url, VIDEO_ID_PATTERNS)
+      : null;
+  if (!videoId) return null;
 
   const embedUrl = `https://www.youtube.com/embed/${videoId}`;
 

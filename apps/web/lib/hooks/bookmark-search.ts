@@ -101,7 +101,16 @@ export function useBookmarkSearch() {
   }, [refetch, sortOrder]);
 
   if (error) {
-    throw error;
+    return {
+      error,
+      data: undefined,
+      isPending: false,
+      isPlaceholderData: false,
+      hasNextPage: false,
+      // eslint-disable-next-line no-empty-function
+      fetchNextPage: () => {},
+      isFetchingNextPage: false,
+    };
   }
 
   return {

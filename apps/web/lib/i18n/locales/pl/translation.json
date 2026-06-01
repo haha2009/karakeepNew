@@ -1020,7 +1020,11 @@
     "crawling_in_progress": "Pobieranie zawartości strony…",
     "continue_reading": "Kontynuuj, gdzie skończyłeś",
     "continue_reading_percent": "Kontynuuj tam, gdzie skończyłeś ({{percent}}%)",
-    "continue_button": "Kontynuuj"
+    "continue_button": "Kontynuuj",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "highlights": {
     "no_highlights": "Nie masz jeszcze żadnych wyróżnień."
@@ -1168,3 +1172,4 @@
     "generating": "Generowanie..."
   }
 }
+

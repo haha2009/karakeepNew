@@ -1,8 +1,9 @@
 import { ShoppingCart } from "lucide-react";
 
-import { BookmarkTypes, ZBookmark } from "@karakeep/shared/types/bookmarks";
+import { ZBookmark } from "@karakeep/shared/types/bookmarks";
 
 import { ContentRenderer } from "./types";
+import { canRenderLinkType } from "./renderer-utils";
 
 function extractAmazonProductInfo(
   url: string,
@@ -32,23 +33,15 @@ function extractAmazonProductInfo(
 }
 
 function canRenderAmazon(bookmark: ZBookmark): boolean {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return false;
-  }
-
-  const url = bookmark.content.url;
-  return extractAmazonProductInfo(url) !== null;
+  if (!canRenderLinkType(bookmark)) return false;
+  return extractAmazonProductInfo(bookmark.content.url) !== null;
 }
 
 function AmazonRendererComponent({ bookmark }: { bookmark: ZBookmark }) {
-  if (bookmark.content.type !== BookmarkTypes.LINK) {
-    return null;
-  }
+  if (bookmark.content.type !== "link") return null;
 
   const productInfo = extractAmazonProductInfo(bookmark.content.url);
-  if (!productInfo) {
-    return null;
-  }
+  if (!productInfo) return null;
 
   const { title, description, imageUrl } = bookmark.content;
 

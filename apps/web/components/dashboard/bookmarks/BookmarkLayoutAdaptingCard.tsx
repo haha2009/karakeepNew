@@ -30,6 +30,7 @@ import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-list-context";
 import { useUpdateBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 import { useTRPC } from "@karakeep/shared-react/trpc";
+import { logUserAction } from "@karakeep/shared-react/lib/actionLogger";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import {
   getBookmarkTitle,
@@ -254,6 +255,10 @@ function HoverActionBar({ bookmark }: { bookmark: ZBookmark }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          logUserAction("Toggle Favorite", {
+            bookmarkId: bookmark.id,
+            value: !bookmark.favourited,
+          });
           updateBookmarkMutator.mutate({
             bookmarkId: bookmark.id,
             favourited: !bookmark.favourited,
@@ -270,6 +275,10 @@ function HoverActionBar({ bookmark }: { bookmark: ZBookmark }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          logUserAction("Toggle Archive", {
+            bookmarkId: bookmark.id,
+            value: !bookmark.archived,
+          });
           updateBookmarkMutator.mutate({
             bookmarkId: bookmark.id,
             archived: !bookmark.archived,

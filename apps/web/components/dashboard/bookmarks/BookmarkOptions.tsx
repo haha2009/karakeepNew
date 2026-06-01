@@ -48,6 +48,7 @@ import {
   useUpdateBookmark,
 } from "@karakeep/shared-react/hooks/bookmarks";
 import { useRemoveBookmarkFromList } from "@karakeep/shared-react/hooks/lists";
+import { logUserAction } from "@karakeep/shared-react/lib/actionLogger";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import { getAssetUrl } from "@karakeep/shared/utils/assetUtils";
 
@@ -498,7 +499,13 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
                       <DropdownMenuItem
                         key={subItem.id}
                         disabled={subItem.disabled}
-                        onClick={subItem.onClick}
+                        onClick={() => {
+                          logUserAction("Bookmark SubOption", {
+                            action: subItem.id,
+                            title: subItem.title,
+                          });
+                          subItem.onClick();
+                        }}
                       >
                         {subItem.icon}
                         <span>{subItem.title}</span>
@@ -513,7 +520,13 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
                 key={item.id}
                 disabled={item.disabled}
                 className={item.className}
-                onClick={item.onClick}
+                onClick={() => {
+                  logUserAction("Bookmark Option", {
+                    action: item.id,
+                    title: item.title,
+                  });
+                  item.onClick();
+                }}
               >
                 {item.icon}
                 <span>{item.title}</span>

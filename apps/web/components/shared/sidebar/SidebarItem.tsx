@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { logUserAction } from "@karakeep/shared-react/lib/actionLogger";
 
 export default function SidebarItem({
   name,
@@ -59,6 +60,7 @@ export default function SidebarItem({
             "flex flex-1 items-center gap-x-2 rounded-[inherit] px-3 py-2",
             linkClassName,
           )}
+          onClick={() => logUserAction("Navigate", { to: path, name })}
         >
           {logo}
           <span title={name} className="line-clamp-1 break-all">

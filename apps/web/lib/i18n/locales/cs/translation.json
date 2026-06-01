@@ -1075,7 +1075,11 @@
     "crawling_in_progress": "Načítám obsah stránky…",
     "continue_reading": "Pokračuj tam, kde jsi skončil",
     "continue_reading_percent": "Pokračuj tam, kde jsi skončil ({{percent}} %)",
-    "continue_button": "Pokračovat"
+    "continue_button": "Pokračovat",
+    "renderer_error": "Content Renderer Error",
+    "renderer_error_description": "The custom content renderer failed to load the content.",
+    "renderer_error_details": "Technical details",
+    "switch_to_reader": "Switch to Reader View"
   },
   "dialogs": {
     "bookmarks": {
@@ -1168,3 +1172,4 @@
     "generating": "Generuji..."
   }
 }
+
