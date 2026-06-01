@@ -415,6 +415,10 @@
           "users": {
             "label": "Admin: users",
             "description": "Access administrative user management."
+          },
+          "ai_provider": {
+            "label": "AI Provider",
+            "description": "Configure AI provider settings."
           }
         }
       }

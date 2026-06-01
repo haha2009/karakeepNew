@@ -118,6 +118,11 @@ const ADMIN_RESOURCE_TRANSLATION_KEYS = {
     descriptionKey:
       "settings.api_keys.scopes.admin_resources.users.description",
   },
+  "ai-provider": {
+    labelKey: "settings.api_keys.scopes.admin_resources.ai_provider.label",
+    descriptionKey:
+      "settings.api_keys.scopes.admin_resources.ai_provider.description",
+  },
 } as const satisfies Record<
   ZApiKeyAdminScopeResource,
   { labelKey: string; descriptionKey: string }

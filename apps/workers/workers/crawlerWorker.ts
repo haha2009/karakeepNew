@@ -516,6 +516,114 @@ async function browserlessCrawlPage(
   );
 }
 
+/**
+ * Convert an x.com / twitter.com URL to its fxtwitter.com equivalent
+ * for fetching oembed content when the normal browser crawl fails or
+ * returns minimal content (anti-bot detection).
+ *
+ * e.g. https://x.com/user/status/123 → https://fxtwitter.com/user/status/123
+ */
+function toFxtwitterUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.hostname === "x.com" ||
+      parsed.hostname === "twitter.com" ||
+      parsed.hostname === "www.x.com" ||
+      parsed.hostname === "mobile.twitter.com" ||
+      parsed.hostname === "mobile.x.com"
+    ) {
+      parsed.hostname = "fxtwitter.com";
+      return parsed.toString();
+    }
+  } catch {
+    // Not a valid URL
+  }
+  return null;
+}
+
+/**
+ * Fetch oembed content from fxtwitter.com as a fallback when the
+ * primary crawl produces minimal content for X/Twitter URLs.
+ * Returns an HTML string with the tweet content, or null on failure.
+ */
+async function fetchFxtwitterFallback(
+  originalUrl: string,
+  jobId: string,
+  abortSignal: AbortSignal,
+  runProxy: RunProxyConfig,
+): Promise<string | null> {
+  const fxtwitterUrl = toFxtwitterUrl(originalUrl);
+  if (!fxtwitterUrl) {
+    return null;
+  }
+
+  return await withSpan(
+    tracer,
+    "crawlerWorker.fetchFxtwitterFallback",
+    {
+      attributes: {
+        "bookmark.url": originalUrl,
+        "crawler.fxtwitterUrl": fxtwitterUrl,
+        "job.id": jobId,
+      },
+    },
+    async () => {
+      logger.info(
+        `[Crawler][${jobId}] Primary crawl returned minimal content. Attempting fxtwitter fallback for "${truncateUrl(originalUrl)}"`,
+      );
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const combinedSignal = AbortSignal.any([
+          abortSignal,
+          controller.signal,
+        ]);
+
+        const response = await fetchWithProxy(
+          fxtwitterUrl,
+          {
+            signal: combinedSignal,
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (compatible; KarakeepCrawler/1.0; +https://karakeep.app)",
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+          },
+          runProxy,
+        );
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          logger.info(
+            `[Crawler][${jobId}] fxtwitter fallback returned status ${response.status}, giving up.`,
+          );
+          return null;
+        }
+
+        const html = await response.text();
+        if (html.length < 100) {
+          logger.info(
+            `[Crawler][${jobId}] fxtwitter fallback content too small (${html.length} bytes), giving up.`,
+          );
+          return null;
+        }
+
+        logger.info(
+          `[Crawler][${jobId}] fxtwitter fallback succeeded, got ${html.length} bytes.`,
+        );
+        return html;
+      } catch (error) {
+        logger.info(
+          `[Crawler][${jobId}] fxtwitter fallback failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return null;
+      }
+    },
+  );
+}
+
 async function crawlPage(
   jobId: string,
   url: string,
@@ -1931,6 +2039,39 @@ async function crawlAndParseUrl(
         await runParseSubprocess(htmlContent, browserUrl, jobId, abortSignal);
       abortSignal.throwIfAborted();
 
+      // If the crawled content is suspiciously small and the URL is from
+      // X/Twitter, try fxtwitter as a fallback to get tweet content.
+      let finalMeta = meta;
+      let finalReadableContent = parsedReadableContent;
+      if (htmlContent.length < 500 && toFxtwitterUrl(url) !== null) {
+        const fallbackHtml = await fetchFxtwitterFallback(
+          url,
+          jobId,
+          abortSignal,
+          runProxy,
+        );
+        if (fallbackHtml) {
+          const fallbackResult = await runParseSubprocess(
+            fallbackHtml,
+            url,
+            jobId,
+            abortSignal,
+          );
+          // Use fallback metadata and content if the primary crawl was empty
+          if (
+            (fallbackResult.metadata.title ||
+              fallbackResult.readableContent?.content) &&
+            (!meta.title || htmlContent.length < 200)
+          ) {
+            logger.info(
+              `[Crawler][${jobId}] Using fxtwitter fallback content (primary was ${htmlContent.length} bytes, fallback has ${fallbackHtml.length} bytes)`,
+            );
+            finalMeta = fallbackResult.metadata;
+            finalReadableContent = fallbackResult.readableContent;
+          }
+        }
+      }
+
       const parseDate = (date: string | null | undefined) => {
         if (!date) {
           return null;
@@ -1948,20 +2089,22 @@ async function crawlAndParseUrl(
       await db
         .update(bookmarkLinks)
         .set({
-          title: meta.title,
-          description: meta.description,
+          title: finalMeta.title,
+          description: finalMeta.description,
           // Don't store data URIs as they're not valid URLs and are usually quite large
-          imageUrl: meta.image?.startsWith("data:") ? null : meta.image,
-          favicon: meta.logo,
+          imageUrl: finalMeta.image?.startsWith("data:")
+            ? null
+            : finalMeta.image,
+          favicon: finalMeta.logo,
           crawlStatusCode: statusCode,
-          author: meta.author,
-          publisher: meta.publisher,
-          datePublished: parseDate(meta.datePublished),
-          dateModified: parseDate(meta.dateModified),
+          author: finalMeta.author,
+          publisher: finalMeta.publisher,
+          datePublished: parseDate(finalMeta.datePublished),
+          dateModified: parseDate(finalMeta.dateModified),
         })
         .where(eq(bookmarkLinks.id, bookmarkId));
 
-      let readableContent = parsedReadableContent;
+      let readableContent = finalReadableContent;
 
       const screenshotAssetInfo = await raceWith(
         storeScreenshot(screenshot, userId, jobId),
@@ -1982,9 +2125,12 @@ async function crawlAndParseUrl(
       );
       abortSignal.throwIfAborted();
       let imageAssetInfo: DBAssetType | null = null;
-      if (meta.image) {
+      // Skip data: URIs — they can't be downloaded via HTTP and will cause
+      // "Unsupported protocol" errors in validateUrl(). We already null-out
+      // imageUrl for data: URIs above; skip the download entirely as well.
+      if (finalMeta.image && !finalMeta.image.startsWith("data:")) {
         const downloaded = await downloadAndStoreImage(
-          meta.image,
+          finalMeta.image!,
           userId,
           jobId,
           abortSignal,

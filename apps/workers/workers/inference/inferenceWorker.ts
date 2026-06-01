@@ -83,7 +83,19 @@ export class OpenAiWorker {
 async function runOpenAI(job: DequeuedJob<ZOpenAIRequest>) {
   const jobId = job.id;
 
-  const inferenceClient = InferenceClientFactory.build();
+  // Read provider config from DB (overrides env vars)
+  const dbProviderConfig = await db.query.providerConfig.findFirst();
+  const inferenceClient = InferenceClientFactory.build({
+    apiKey: dbProviderConfig?.apiKey ?? undefined,
+    baseURL: dbProviderConfig?.baseUrl ?? undefined,
+    textModel: dbProviderConfig?.textModel ?? undefined,
+    imageModel: dbProviderConfig?.imageModel ?? undefined,
+    outputSchema: dbProviderConfig?.outputSchema as
+      | "structured"
+      | "json"
+      | "plain"
+      | undefined,
+  });
   if (!inferenceClient) {
     logger.debug(
       `[inference][${jobId}] No inference client configured, nothing to do now`,

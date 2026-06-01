@@ -1,12 +1,9 @@
 ################# Monolith Builder ##############
-FROM rust:1-bookworm AS monolith_builder
+FROM busybox:latest AS monolith_builder
 
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libssl-dev \
-        pkg-config \
-    && rm -rf /var/lib/apt/lists/* \
-    && cargo install monolith
+ARG TARGETARCH
+COPY monolith-${TARGETARCH} /usr/local/bin/monolith
+RUN chmod +x /usr/local/bin/monolith
 
 ################# Base Builder ##############
 FROM node:24-slim AS base
@@ -27,7 +24,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files for dependency installation
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/cli/package.json ./apps/cli/
 COPY apps/mcp/package.json ./apps/mcp/
 COPY apps/web/package.json ./apps/web/
@@ -50,6 +47,8 @@ COPY ./patches ./patches
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+# Use npmmirror for fast downloads in China
+ENV npm_config_registry=https://registry.npmmirror.com
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -92,24 +91,15 @@ EXPOSE 3000
 ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG TARGETARCH
 
-# Install wget and xz-utils needed for s6-overlay
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-        ca-certificates \
-        wget \
-        xz-utils \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update --fix-missing && \
+    apt-get install --no-install-recommends -y curl xz-utils && \
+    rm -rf /var/lib/apt/lists/*
 
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
-    && case ${TARGETARCH} in \
-            "amd64")  S6_ARCH=x86_64   ;; \
-            "arm64")  S6_ARCH=aarch64  ;; \
-        esac \
-    && echo https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz -O /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && wget https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz -O /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && tar -C / -Jxpf /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && rm -f /tmp/s6-overlay-${S6_ARCH}.tar.xz
+COPY s6-overlay-noarch.tar.xz /tmp/s6-overlay-noarch.tar.xz
+COPY s6-overlay-x86_64.tar.xz /tmp/s6-overlay-arch.tar.xz
+RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
+    tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
+    rm -f /tmp/s6-overlay-*.tar.xz
 
 # Copy the s6-overlay config
 COPY --chmod=755 ./docker/root/etc/s6-overlay /etc/s6-overlay
@@ -126,14 +116,10 @@ RUN apt-get update \
         ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Pre-downloaded yt-dlp (GitHub is slow from China)
 ARG TARGETARCH
-RUN case ${TARGETARCH} in \
-        "amd64")  YTDLP_FILE=yt-dlp_linux ;; \
-        "arm64")  YTDLP_FILE=yt-dlp_linux_aarch64 ;; \
-        *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
-    esac \
-    && curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/${YTDLP_FILE} -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp
+COPY ./yt-dlp /usr/local/bin/yt-dlp
+RUN chmod +x /usr/local/bin/yt-dlp
 
 # yt-dlp >=2025.x requires a JavaScript runtime to extract YouTube formats.
 # Deno is yt-dlp's default but is not present in this image. Node is the
@@ -143,7 +129,7 @@ RUN case ${TARGETARCH} in \
 RUN echo "--js-runtimes node" > /etc/yt-dlp.conf
 
 # Copy monolith binary from builder
-COPY --from=monolith_builder /usr/local/cargo/bin/monolith /usr/local/bin/monolith
+COPY --from=monolith_builder /usr/local/bin/monolith /usr/local/bin/monolith
 
 ######################
 # Prepare the web app
@@ -151,7 +137,7 @@ COPY --from=monolith_builder /usr/local/cargo/bin/monolith /usr/local/bin/monoli
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXTAUTH_URL_INTERNAL=http://localhost:${PORT}
+ENV NEXTAUTH_URL_INTERNAL=http://127.0.0.1:${PORT}
 
 # Create symlink for jemalloc based on architecture
 ARG TARGETARCH

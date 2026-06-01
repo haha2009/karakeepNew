@@ -68,6 +68,12 @@ data
 auth_failures.log
 .claude/settings.local.json
 
+# Local AI agent context (not suitable for GitHub)
+.claude/brief.md
+.claude/commands.md
+.claude/deployment.md
+.claude/agents-guide.md
+
 # Local directory for AI agent contexts
 .aicontext/
 .codex

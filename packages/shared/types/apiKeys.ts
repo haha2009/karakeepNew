@@ -23,6 +23,7 @@ export const API_KEY_ADMIN_SCOPE_RESOURCES = [
   "jobs",
   "system",
   "users",
+  "ai-provider",
 ] as const;
 
 export const API_KEY_SCOPE_ACCESS = ["read", "readwrite"] as const;

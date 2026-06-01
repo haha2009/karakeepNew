@@ -66,9 +66,13 @@ export interface OpenAIInferenceConfig {
 }
 
 export class InferenceClientFactory {
-  static build(): InferenceClient | null {
-    if (serverConfig.inference.openAIApiKey) {
-      return OpenAIInferenceClient.fromConfig();
+  static build(
+    overrideConfig?: Partial<OpenAIInferenceConfig>,
+  ): InferenceClient | null {
+    const resolvedApiKey =
+      overrideConfig?.apiKey ?? serverConfig.inference.openAIApiKey;
+    if (resolvedApiKey) {
+      return OpenAIInferenceClient.fromConfig(overrideConfig);
     }
 
     if (serverConfig.inference.ollamaBaseUrl) {
@@ -98,18 +102,22 @@ export class OpenAIInferenceClient implements InferenceClient {
     });
   }
 
-  static fromConfig(): OpenAIInferenceClient {
+  static fromConfig(
+    overrideConfig?: Partial<OpenAIInferenceConfig>,
+  ): OpenAIInferenceClient {
     return new OpenAIInferenceClient({
-      apiKey: serverConfig.inference.openAIApiKey!,
-      baseURL: serverConfig.inference.openAIBaseUrl,
+      apiKey: overrideConfig?.apiKey ?? serverConfig.inference.openAIApiKey!,
+      baseURL: overrideConfig?.baseURL ?? serverConfig.inference.openAIBaseUrl,
       proxyUrl: serverConfig.inference.openAIProxyUrl,
       serviceTier: serverConfig.inference.openAIServiceTier,
-      textModel: serverConfig.inference.textModel,
-      imageModel: serverConfig.inference.imageModel,
+      textModel: overrideConfig?.textModel ?? serverConfig.inference.textModel,
+      imageModel:
+        overrideConfig?.imageModel ?? serverConfig.inference.imageModel,
       contextLength: serverConfig.inference.contextLength,
       maxOutputTokens: serverConfig.inference.maxOutputTokens,
       useMaxCompletionTokens: serverConfig.inference.useMaxCompletionTokens,
-      outputSchema: serverConfig.inference.outputSchema,
+      outputSchema:
+        overrideConfig?.outputSchema ?? serverConfig.inference.outputSchema,
       reasoningEffort: serverConfig.inference.openAIReasoningEffort,
     });
   }

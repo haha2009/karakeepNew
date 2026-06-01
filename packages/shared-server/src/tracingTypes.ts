@@ -30,6 +30,7 @@ export type TracingAttributeKey =
   | "crawler.contentType"
   | "crawler.statusCode"
   | "crawler.proxy"
+  | "crawler.fxtwitterUrl"
   | "crawler.cleanup.hasPage"
   | "crawler.cleanup.pageClosed"
   | "crawler.cleanup.contextClosed"

@@ -1,70 +1,26 @@
-# Karakeep Project Overview
+# Karakeep
 
-This document provides context about the Karakeep project for the different agents.
+一站式信息收藏与管理平台。Monorepo (Turborepo + pnpm)。
 
-## Project Overview
+## 快速入口
 
-Karakeep is a monorepo project managed with Turborepo. It is a "read-it-later" bookmarking application with a focus on collecting and organizing information. The project is built with a modern tech stack, including:
+- **架构文档** → [docs/internal/architecture/](docs/internal/architecture/)
+- **开发指南** → [docs/internal/development/](docs/internal/setup/)
+- **规范标准** → [docs/internal/standards/](docs/internal/standards/)
+- **爬虫系统** → [docs/internal/crawler/](docs/internal/crawler/)
+- **产品文档** → [docs/internal/product/](docs/internal/product/)
+- **Agent 速查** → [.claude/brief.md](.claude/brief.md)
+- **部署纪要** → [.claude/deployment.md](.claude/deployment.md)
 
-- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
-- **Backend:** Hono (a lightweight web framework), tRPC
-- **Database:** Drizzle ORM (likely with a relational database like PostgreSQL or SQLite)
-- **Tooling:** Oxfmt, oxlint, Vitest, pnpm
+## 核心命令
 
-## Project Structure
+| 命令 | 用途 |
+|------|------|
+| `pnpm dev` | 启动开发环境 |
+| `pnpm typecheck` | 类型检查 |
+| `pnpm test` | 运行测试 |
+| `pnpm lint:fix` | 自动修复 lint |
+| `pnpm format:fix` | 自动格式化 |
+| `pnpm db:generate --name <desc>` | 数据库迁移 |
 
-The project is organized into `apps` and `packages`:
-
-### Applications (`apps/`)
-
-- **`web`:** The main web application, built with Next.js.
-- **`browser-extension`:** A browser extension, likely for saving content to karakeep.
-- **`cli`:** A command-line interface for interacting with the service.
-- **`landing`:** A landing page for the project.
-- **`mobile`:** A mobile application (details unknown).
-- **`mcp`:** The Model Context Protocol (MCP) server to communicate with Karakeep.
-- **`workers`:** Background workers for processing tasks.
-
-### Packages (`packages/`)
-
-- **`api`:** The main API, built with Hono and tRPC.
-- **`db`:** Database schema and migrations, using Drizzle ORM.
-- **`e2e_tests`:** End-to-end tests for the project.
-- **`open-api`:** OpenAPI specifications for the API.
-- **`sdk`:** A software development kit for interacting with the API.
-- **`shared`:** Shared code and types between packages.
-- **`shared-react`:** Shared React components and hooks.
-- **`shared-server`:** Shared logic that's meant to be used on the server-side.
-- **`trpc`:** tRPC router and procedures. Most of the business logic is here.
-
-### Docs
-
-- **docs/docs/03-configuration.md**: Explains configuration options for the project.
-
-## Development Workflow
-
-- **Package Manager:** pnpm
-- **Build System:** Turborepo
-- **Code Formatting:** Oxfmt
-- **Linting:** oxlint
-- **Testing:** Vitest
-
-## Other info
-
-- This project uses shadcn/ui. The shadcn components in the web app are in `packages/web/components/ui`.
-- This project uses Tailwind CSS.
-- For the mobile app, we use [expo](https://expo.dev/).
-
-### Common Commands
-
-- `pnpm typecheck`: Typecheck the codebase.
-- `pnpm lint`: Lint the codebase.
-- `pnpm lint:fix`: Fix linting issues.
-- `pnpm format`: Format the codebase.
-- `pnpm format:fix`: Fix formatting issues.
-- `pnpm test`: Run tests.
-- `pnpm db:generate --name description_of_schema_change`: db migration after making schema changes
-
-Starting services:
-- `pnpm web`: Start the web application (this doesn't return, unless you kill it).
-- `pnpm workers`: Starts the background workers (this doesn't return, unless you kill it).
+> 首次接触？先读 `.claude/brief.md` (2 分钟)，再根据需要查阅详细文档。

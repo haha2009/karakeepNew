@@ -3,7 +3,13 @@ import { TRPCError } from "@trpc/server";
 import { count, eq, or, sum } from "drizzle-orm";
 import { z } from "zod";
 
-import { assets, bookmarkLinks, bookmarks, users } from "@karakeep/db/schema";
+import {
+  assets,
+  bookmarkLinks,
+  bookmarks,
+  providerConfig,
+  users,
+} from "@karakeep/db/schema";
 import {
   AdminMaintenanceQueue,
   AssetPreprocessingQueue,
@@ -39,6 +45,7 @@ const adminBookmarksProcedure = createAdminScopedProcedure("bookmarks");
 const adminJobsProcedure = createAdminScopedProcedure("jobs");
 const adminSystemProcedure = createAdminScopedProcedure("system");
 const adminUsersProcedure = createAdminScopedProcedure("users");
+const adminAiProviderProcedure = createAdminScopedProcedure("ai-provider");
 
 export const adminAppRouter = router({
   stats: adminSystemProcedure
@@ -760,5 +767,64 @@ export const adminAppRouter = router({
           groupId: "admin",
         },
       );
+    }),
+
+  // ── AI Provider Configuration ──────────────────────────────────
+  getProviderConfig: adminAiProviderProcedure.query(async ({ ctx }) => {
+    const config = await ctx.db.query.providerConfig.findFirst();
+    if (!config) {
+      return null;
+    }
+    // Mask the API key for display
+    const maskedKey = config.apiKey
+      ? config.apiKey.slice(0, 8) + "..." + config.apiKey.slice(-4)
+      : null;
+    return {
+      ...config,
+      apiKeyDisplay: maskedKey,
+      hasApiKey: !!config.apiKey,
+    };
+  }),
+
+  saveProviderConfig: adminAiProviderProcedure
+    .input(
+      z.object({
+        baseUrl: z.string().optional(),
+        apiKey: z.string().optional(),
+        textModel: z.string().optional(),
+        imageModel: z.string().optional(),
+        outputSchema: z.enum(["structured", "json", "plain"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.providerConfig.findFirst();
+
+      if (existing) {
+        // Only update fields that are provided
+        const updateData: Record<string, unknown> = { updatedAt: new Date() };
+        if (input.baseUrl !== undefined) updateData.baseUrl = input.baseUrl;
+        if (input.apiKey !== undefined) updateData.apiKey = input.apiKey;
+        if (input.textModel !== undefined)
+          updateData.textModel = input.textModel;
+        if (input.imageModel !== undefined)
+          updateData.imageModel = input.imageModel;
+        if (input.outputSchema !== undefined)
+          updateData.outputSchema = input.outputSchema;
+
+        await ctx.db
+          .update(providerConfig)
+          .set(updateData)
+          .where(eq(providerConfig.id, existing.id));
+      } else {
+        await ctx.db.insert(providerConfig).values({
+          baseUrl: input.baseUrl ?? null,
+          apiKey: input.apiKey ?? null,
+          textModel: input.textModel ?? "deepseek-v4-pro",
+          imageModel: input.imageModel ?? "deepseek-v4-pro",
+          outputSchema: input.outputSchema ?? "json",
+        });
+      }
+
+      return { success: true };
     }),
 });

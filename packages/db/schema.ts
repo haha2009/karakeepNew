@@ -29,6 +29,28 @@ function modifiedAtField() {
     .$onUpdate(() => new Date());
 }
 
+// ── AI Provider Configuration ──────────────────────────────────────
+// Stores the AI provider settings override. Read by the inference worker
+// on each job. Falls back to env vars (OPENAI_API_KEY, OPENAI_BASE_URL, etc.)
+// when DB config is empty.
+
+export const providerConfig = sqliteTable("providerConfig", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => "default"),
+  baseUrl: text("baseUrl"),
+  apiKey: text("apiKey"),
+  textModel: text("textModel"),
+  imageModel: text("imageModel"),
+  outputSchema: text("outputSchema"),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+});
+
 export const users = sqliteTable("user", {
   id: text("id")
     .notNull()
