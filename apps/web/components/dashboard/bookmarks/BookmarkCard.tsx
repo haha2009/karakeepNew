@@ -25,6 +25,7 @@ export default function BookmarkCard({
         bookmarkId: initialData.id,
       },
       {
+        enabled: !!initialData?.id,
         initialData,
         refetchInterval: (query) => {
           const data = query.state.data;

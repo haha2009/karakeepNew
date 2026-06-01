@@ -61,9 +61,53 @@ export default function Providers({
 }) {
   const queryClient = getQueryClient();
 
-  const [trpcClient] = useState(() =>
-    createTRPCClient<AppRouter>({
+  const [trpcClient] = useState(() => {
+    // Diagnostic link to catch getBookmark calls with empty bookmarkId
+    const diagnosticLink = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (runtime: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (params: { op: any; next: (op: any) => any }) => {
+          const { op } = params;
+          const operation = op as {
+            type: string;
+            path: string;
+            input: Record<string, unknown>;
+            id: number;
+          };
+          if (
+            operation.type === "query" &&
+            operation.path === "bookmarks.getBookmark" &&
+            operation.input &&
+            typeof operation.input === "object" &&
+            !operation.input.bookmarkId
+          ) {
+            console.error(
+              "%c[KARA-DIAG] getBookmark called without bookmarkId!",
+              "color: red; font-weight: bold; font-size: 14px",
+            );
+            console.error("Input:", operation.input);
+            console.error("Path:", operation.path);
+            console.error("Type:", operation.type);
+            console.error("ID:", operation.id);
+            console.error(new Error().stack);
+            if (
+              "captureStackTrace" in Error &&
+              typeof Error.captureStackTrace === "function"
+            ) {
+              const err = {} as Error;
+              Error.captureStackTrace(err, diagnosticLink);
+              console.error("Captured stack:", err.stack);
+            }
+          }
+          return params.next(op);
+        };
+      };
+    };
+
+    return createTRPCClient<AppRouter>({
       links: [
+        diagnosticLink(),
         loggerLink({
           enabled: (op) =>
             process.env.NODE_ENV === "development" ||
@@ -76,8 +120,8 @@ export default function Providers({
           transformer: superjson,
         }),
       ],
-    }),
-  );
+    });
+  });
 
   return (
     <ClientConfigCtx.Provider value={clientConfig}>

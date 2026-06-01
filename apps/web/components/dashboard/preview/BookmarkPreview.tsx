@@ -144,6 +144,7 @@ export default function BookmarkPreview({
         bookmarkId,
       },
       {
+        enabled: !!bookmarkId,
         initialData,
         refetchInterval: (query) => {
           const data = query.state.data;

@@ -31,6 +31,7 @@ import {
   Page,
 } from "playwright";
 import { chromium } from "playwright-extra";
+import { launch as cloakLaunch } from "cloakbrowser";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { abortRace, abortRaceResolve, raceWith, timeoutRace } from "utils";
 import { withWorkerTracing, withWorkerEventLog } from "workerTracing";
@@ -266,7 +267,14 @@ function startContextReaper() {
 }
 
 async function startBrowserInstance() {
-  if (serverConfig.crawler.browserWebSocketUrl) {
+  if (
+    serverConfig.crawler.cloakEnabled &&
+    !serverConfig.crawler.browserWebSocketUrl &&
+    !serverConfig.crawler.browserWebUrl
+  ) {
+    logger.info(`[Crawler] Launching CloakBrowser`);
+    return await cloakLaunch();
+  } else if (serverConfig.crawler.browserWebSocketUrl) {
     logger.info(
       `[Crawler] Connecting to existing browser websocket address: ${redactUrlCredentials(serverConfig.crawler.browserWebSocketUrl)}`,
     );
@@ -333,7 +341,9 @@ export class CrawlerWorker {
   private static ensureInitialized() {
     if (!CrawlerWorker.initPromise) {
       CrawlerWorker.initPromise = (async () => {
-        chromium.use(StealthPlugin());
+        if (!serverConfig.crawler.cloakEnabled) {
+          chromium.use(StealthPlugin());
+        }
         if (serverConfig.crawler.enableAdblocker) {
           logger.info("[crawler] Loading adblocker ...");
           const globalBlockerResult = await tryCatch(

@@ -11,6 +11,7 @@ allowBuilds:
   '@sentry/cli': true
   '@swc/core': true
   better-sqlite3: true
+  cloakbrowser: true
   esbuild: true
   re2: true
   sharp: true

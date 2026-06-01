@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Search } from "lucide-react";
 import BookmarksGrid from "@/components/dashboard/bookmarks/BookmarksGrid";
 import BookmarksGridSkeleton from "@/components/dashboard/bookmarks/BookmarksGridSkeleton";
 import { useBookmarkSearch } from "@/lib/hooks/bookmark-search";
@@ -9,8 +9,12 @@ import { useInSearchPageStore } from "@/lib/store/useInSearchPageStore";
 import { useSortOrderStore } from "@/lib/store/useSortOrderStore";
 import { logError } from "@karakeep/shared-react/lib/actionLogger";
 import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 function SearchComp() {
+  const searchParams = useSearchParams();
+  const hasQuery = (searchParams.get("q") ?? "").length > 0;
+
   const { data, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useBookmarkSearch();
 
@@ -42,6 +46,21 @@ function SearchComp() {
           <h3 className="text-lg font-medium">搜索功能未配置</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             需要配置 Meilisearch 后才能使用全文搜索功能。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <Search className="h-12 w-12 text-muted-foreground" />
+        <div className="text-center">
+          <h3 className="text-lg font-medium">搜索书签</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            在上方搜索框中输入关键词开始搜索，或使用 Cmd+K
+            快捷键快速聚焦搜索框。
           </p>
         </div>
       </div>

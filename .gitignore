@@ -76,6 +76,9 @@ auth_failures.log
 
 # Local directory for AI agent contexts
 .aicontext/
+
+# Debug scripts
+debug-*.js
 .codex
 .claude/worktrees
 jean.json

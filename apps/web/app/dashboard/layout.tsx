@@ -10,16 +10,7 @@ import { api } from "@/server/api/client";
 import { getServerAuthSession } from "@/server/auth";
 import { TRPCError } from "@trpc/server";
 import { TFunction } from "i18next";
-import {
-  Archive,
-  ClipboardList,
-  Highlighter,
-  Home,
-  Search,
-  Tag,
-} from "lucide-react";
-
-import { PluginManager, PluginType } from "@karakeep/shared/plugins";
+import { Archive, ClipboardList, Highlighter, Home, Tag } from "lucide-react";
 import { tryCatch } from "@karakeep/shared/tryCatch";
 
 export default async function Dashboard({
@@ -62,15 +53,6 @@ export default async function Dashboard({
         icon: <Home size={18} />,
         path: "/dashboard/bookmarks",
       },
-      PluginManager.isRegistered(PluginType.Search)
-        ? [
-            {
-              name: t("common.search"),
-              icon: <Search size={18} />,
-              path: "/dashboard/search",
-            },
-          ]
-        : [],
       {
         name: t("common.tags"),
         icon: <Tag size={18} />,

@@ -91,6 +91,7 @@ export function useBookmarkSearch() {
         placeholderData: keepPreviousData,
         gcTime: 0,
         initialCursor: null,
+        enabled: searchQuery.length > 0,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
       },
     ),

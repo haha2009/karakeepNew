@@ -23,6 +23,7 @@ const ArchiveBookmarkButton = React.forwardRef<
     api.bookmarks.getBookmark.queryOptions(
       { bookmarkId },
       {
+        enabled: !!bookmarkId,
         select: (data) => ({
           archived: data.archived,
         }),

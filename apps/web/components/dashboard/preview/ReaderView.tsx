@@ -33,9 +33,14 @@ export default function ReaderView({
   const { t } = useTranslation();
   const api = useTRPC();
   const { data: highlights } = useQuery(
-    api.highlights.getForBookmark.queryOptions({
-      bookmarkId,
-    }),
+    api.highlights.getForBookmark.queryOptions(
+      {
+        bookmarkId,
+      },
+      {
+        enabled: !!bookmarkId,
+      },
+    ),
   );
   const { data: cachedContent, isPending: isCachedContentLoading } = useQuery(
     api.bookmarks.getBookmark.queryOptions(
@@ -44,6 +49,7 @@ export default function ReaderView({
         includeContent: true,
       },
       {
+        enabled: !!bookmarkId,
         select: (data) =>
           data.content.type == BookmarkTypes.LINK
             ? data.content.htmlContent

@@ -19,9 +19,18 @@ import { READER_FONT_FAMILIES } from "@karakeep/shared/types/readers";
 import { getBookmarkTitle } from "@karakeep/shared/utils/bookmarkUtils";
 
 export default function ReaderViewPage() {
-  const api = useTRPC();
   const params = useParams<{ bookmarkId: string }>();
   const bookmarkId = params.bookmarkId;
+
+  if (!bookmarkId) {
+    return <FullPageSpinner />;
+  }
+
+  return <ReaderViewPageContent bookmarkId={bookmarkId} />;
+}
+
+function ReaderViewPageContent({ bookmarkId }: { bookmarkId: string }) {
+  const api = useTRPC();
   const { data: highlights } = useQuery(
     api.highlights.getForBookmark.queryOptions(
       {
