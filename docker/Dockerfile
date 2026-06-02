@@ -2,13 +2,14 @@
 FROM busybox:latest AS monolith_builder
 
 ARG TARGETARCH
-# Map Docker ARCH to monolith binary name (amd64/x86_64 -> amd64, arm64 -> aarch64)
+# Copy both monolith binaries and symlink based on target arch
+# Note: COPY is a Dockerfile instruction, cannot be inside RUN
+COPY monolith-aarch64 monolith-amd64 /usr/local/bin/
 RUN case "${TARGETARCH}" in \
-      amd64|x86_64) MONOLITH_NAME=amd64 ;; \
-      arm64|aarch64) MONOLITH_NAME=aarch64 ;; \
+      amd64|x86_64) ln -sf /usr/local/bin/monolith-amd64 /usr/local/bin/monolith ;; \
+      arm64|aarch64) ln -sf /usr/local/bin/monolith-aarch64 /usr/local/bin/monolith ;; \
       *) echo "Unknown TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
     esac && \
-    COPY monolith-${MONOLITH_NAME} /usr/local/bin/monolith && \
     chmod +x /usr/local/bin/monolith
 
 ################# Base Builder ##############
