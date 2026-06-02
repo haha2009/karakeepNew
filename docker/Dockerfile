@@ -67,10 +67,9 @@ RUN pnpm install --frozen-lockfile --network-concurrency 1
 
 COPY . .
 
-# DB migration is now handled by tsx in s6 run script - skip ncc build
-# RUN cd packages/db && \
-#     ncc build migrate.ts -o /db_migrations && \
-#     cp -R drizzle /db_migrations
+RUN cd packages/db && \
+    npx ncc build migrate.ts -o /db_migrations && \
+    cp -R drizzle /db_migrations
 
 
 # Compile the web app
@@ -178,6 +177,8 @@ COPY --from=base --chown=node:node /app/apps/web/.next/static ./apps/web/.next/s
 # Prepare the workers app
 ######################
 COPY --from=base /prod/workers /app/apps/workers
+
+COPY --from=base /db_migrations /db_migrations
 
 ENTRYPOINT ["/init"]
 
