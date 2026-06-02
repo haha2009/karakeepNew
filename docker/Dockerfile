@@ -53,7 +53,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 # Use npmmirror for fast downloads in China
 ENV npm_config_registry=https://registry.npmmirror.com
-RUN pnpm install --frozen-lockfile
+# Limit concurrency to reduce memory usage during build
+RUN pnpm install --frozen-lockfile --concurrency 1
 
 COPY . .
 
