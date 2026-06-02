@@ -53,10 +53,10 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# Build the db migration script
-RUN cd packages/db && \
-    pnpm exec ncc build migrate.ts -o /db_migrations && \
-    cp -R drizzle /db_migrations
+# DB migration is now handled by tsx in s6 run script - skip ncc build
+# RUN cd packages/db && \
+#     ncc build migrate.ts -o /db_migrations && \
+#     cp -R drizzle /db_migrations
 
 
 # Compile the web app
@@ -128,6 +128,9 @@ RUN chmod +x /usr/local/bin/yt-dlp
 # changes to the worker. Fixes karakeep-app/karakeep#2758.
 RUN echo "--js-runtimes node" > /etc/yt-dlp.conf
 
+# Install tsx for running db migrations directly (faster than ncc build)
+RUN npm install -g tsx
+
 # Copy monolith binary from builder
 COPY --from=monolith_builder /usr/local/bin/monolith /usr/local/bin/monolith
 
@@ -149,7 +152,6 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
 
 COPY --from=base --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=base /app/apps/web/public ./apps/web/public
-COPY --from=base /db_migrations /db_migrations
 
 # Set the correct permission for prerender cache
 RUN mkdir -p ./apps/web/.next && chown node:node ./apps/web/.next

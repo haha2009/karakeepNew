@@ -65,7 +65,7 @@ export default function Providers({
     // Diagnostic link to catch getBookmark calls with empty bookmarkId
     const diagnosticLink = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (runtime: any) => {
+      return (_runtime: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (params: { op: any; next: (op: any) => any }) => {
           const { op } = params;
