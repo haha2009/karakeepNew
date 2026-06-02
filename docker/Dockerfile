@@ -2,8 +2,14 @@
 FROM busybox:latest AS monolith_builder
 
 ARG TARGETARCH
-COPY monolith-${TARGETARCH} /usr/local/bin/monolith
-RUN chmod +x /usr/local/bin/monolith
+# Map Docker ARCH to monolith binary name (amd64/x86_64 -> amd64, arm64 -> aarch64)
+RUN case "${TARGETARCH}" in \
+      amd64|x86_64) MONOLITH_NAME=amd64 ;; \
+      arm64|aarch64) MONOLITH_NAME=aarch64 ;; \
+      *) echo "Unknown TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+    esac && \
+    COPY monolith-${MONOLITH_NAME} /usr/local/bin/monolith && \
+    chmod +x /usr/local/bin/monolith
 
 ################# Base Builder ##############
 FROM node:24-slim AS base
@@ -53,6 +59,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 # Use npmmirror for fast downloads in China
 ENV npm_config_registry=https://registry.npmmirror.com
+# Avoid sharp prebuild failures by ignoring download errors (will compile from source)
+ENV SHARP_IGNORE_DOWNLOAD_FAILURES=1
 # Limit network concurrency to reduce memory usage during build
 RUN pnpm install --frozen-lockfile --network-concurrency 1
 
