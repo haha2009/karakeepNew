@@ -12,6 +12,10 @@ WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
+# Use Tsinghua mirrors for faster downloads in China
+RUN sed -i "s|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true && \
+    sed -i "s|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g" /etc/apt/sources.list 2>/dev/null || true
+
 # Keep Corepack current enough to verify modern pnpm release signatures.
 RUN npm install -g corepack@latest && corepack enable pnpm
 
