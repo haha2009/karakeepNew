@@ -1,4 +1,9 @@
 name: Build and Push Docker
+#
+# ⚠️ 仓库设为 public 时 CI 免费无限分钟
+#    用完 GitHub 免费额度(2000 min/月)后请切回 private
+#    Settings → Danger Zone → Change visibility
+#
 on:
   release:
     types:
