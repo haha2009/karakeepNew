@@ -112,6 +112,10 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
     rm -f /tmp/s6-overlay-*.tar.xz
 
+# Cache buster: forces CI to rebuild from here when workflow changes
+ARG CACHE_BUSTER
+RUN echo "cache-buster=${CACHE_BUSTER:-none}"
+
 # Copy the s6-overlay config (explicit per-file to avoid cache issues with CI build caches)
 COPY ./docker/root/etc/s6-overlay/s6-rc.d/init-db-migration/type /etc/s6-overlay/s6-rc.d/init-db-migration/type
 COPY ./docker/root/etc/s6-overlay/s6-rc.d/init-db-migration/up /etc/s6-overlay/s6-rc.d/init-db-migration/up
