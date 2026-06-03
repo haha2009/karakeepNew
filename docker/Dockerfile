@@ -152,8 +152,7 @@ RUN chmod +x /usr/local/bin/yt-dlp
 # changes to the worker. Fixes karakeep-app/karakeep#2758.
 RUN echo "--js-runtimes node" > /etc/yt-dlp.conf
 
-# Install tsx for running db migrations directly (faster than ncc build)
-RUN npm install -g tsx
+# tsx was previously used here for db migrations, but now uses ncc-built JS
 
 # Copy monolith binary from builder
 COPY --from=monolith_builder /usr/local/bin/monolith /usr/local/bin/monolith
