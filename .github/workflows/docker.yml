@@ -6,14 +6,14 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux/amd64, linux/arm64]
-        image: [web, workers, cli, mcp, aio]
+        ${{ github.event_name == 'release' && fromJson('{"platform":["linux/amd64","linux/arm64"],"image":["web","workers","cli","mcp","aio"]}') || fromJson('{"platform":["linux/amd64"],"image":["aio"]}') }}
         include:
           - platform: linux/amd64
             suffix: amd64
@@ -82,7 +82,7 @@ jobs:
           all_tags=""
 
           # Only push 'latest' tags on pushes to main, not on releases
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             latest_with_suffix=$(add_suffix "${{ matrix.tags_latest }}")
             all_tags="${latest_with_suffix}"
             echo "latest=${latest_with_suffix}" >> "$GITHUB_OUTPUT"
@@ -113,6 +113,7 @@ jobs:
           cache-to: type=registry,mode=max,ref=ghcr.io/haha2009/karakeepnew/karakeep-build-cache:${{ matrix.target }}-${{ matrix.suffix }}
 
   manifest:
+    if: github.event_name == 'release'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -153,7 +154,6 @@ jobs:
           TAGS_LATEST: ${{ matrix.tags_latest }}
           TAGS_RELEASE: ${{ matrix.tags_release }}
           IS_RELEASE: ${{ github.event_name == 'release' }}
-          IS_PUSH: ${{ github.event_name == 'push' }}
         run: |
           set -euo pipefail
 
@@ -165,18 +165,7 @@ jobs:
               "${tag}-arm64"
           }
 
-          # Only create 'latest' manifests on pushes to main
-          if [[ "${IS_PUSH}" == "true" ]]; then
-            IFS=',' read -ra latest_tags <<< "${TAGS_LATEST}"
-            for tag in "${latest_tags[@]}"; do
-              create_manifest "$tag"
-            done
-          fi
-
-          # Only create release-specific manifests on releases
-          if [[ "${IS_RELEASE}" == "true" ]]; then
-            IFS=',' read -ra release_tags <<< "${TAGS_RELEASE}"
-            for tag in "${release_tags[@]}"; do
-              create_manifest "$tag"
-            done
-          fi
+          IFS=',' read -ra tags <<< "${TAGS_RELEASE}"
+          for tag in "${tags[@]}"; do
+            create_manifest "$tag"
+          done
