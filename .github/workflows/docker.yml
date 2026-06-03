@@ -10,10 +10,12 @@ on:
 
 jobs:
   build:
+    if: ${{ github.event_name == 'release' || (matrix.image == 'aio' && matrix.platform == 'linux/amd64') }}
     strategy:
       fail-fast: false
       matrix:
-        ${{ github.event_name == 'release' && fromJson('{"platform":["linux/amd64","linux/arm64"],"image":["web","workers","cli","mcp","aio"]}') || fromJson('{"platform":["linux/amd64"],"image":["aio"]}') }}
+        platform: [linux/amd64, linux/arm64]
+        image: [web, workers, cli, mcp, aio]
         include:
           - platform: linux/amd64
             suffix: amd64
@@ -81,14 +83,12 @@ jobs:
 
           all_tags=""
 
-          # Only push 'latest' tags on pushes to main, not on releases
           if [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             latest_with_suffix=$(add_suffix "${{ matrix.tags_latest }}")
             all_tags="${latest_with_suffix}"
             echo "latest=${latest_with_suffix}" >> "$GITHUB_OUTPUT"
           fi
 
-          # Only push release-specific tags on releases
           if [[ "${{ github.event_name }}" == "release" ]]; then
             release_with_suffix=$(add_suffix "${{ matrix.tags_release }}")
             all_tags="${release_with_suffix}"
@@ -153,7 +153,6 @@ jobs:
         env:
           TAGS_LATEST: ${{ matrix.tags_latest }}
           TAGS_RELEASE: ${{ matrix.tags_release }}
-          IS_RELEASE: ${{ github.event_name == 'release' }}
         run: |
           set -euo pipefail
 
@@ -165,7 +164,13 @@ jobs:
               "${tag}-arm64"
           }
 
-          IFS=',' read -ra tags <<< "${TAGS_RELEASE}"
-          for tag in "${tags[@]}"; do
+          # Update latest multi-arch manifest on release too
+          IFS=',' read -ra latest_tags <<< "${TAGS_LATEST}"
+          for tag in "${latest_tags[@]}"; do
+            create_manifest "$tag"
+          done
+
+          IFS=',' read -ra release_tags <<< "${TAGS_RELEASE}"
+          for tag in "${release_tags[@]}"; do
             create_manifest "$tag"
           done
