@@ -9,56 +9,44 @@ on:
   workflow_dispatch:
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            echo 'matrix={"platform":["linux/amd64","linux/arm64"],"image":["web","workers","cli","mcp","aio"]}' >> "$GITHUB_OUTPUT"
-          else
-            echo 'matrix={"platform":["linux/amd64"],"image":["aio"]}' >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    needs: prepare
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
-      include:
-        - platform: linux/amd64
-          suffix: amd64
-          os: ubuntu-latest
-        - platform: linux/arm64
-          suffix: arm64
-          os: ubuntu-24.04-arm
-        - image: web
-          name: karakeep-web
-          target: web
-          tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-web:latest
-          tags_release: ghcr.io/haha2009/karakeepnew/karakeep-web:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-web:release
-        - image: workers
-          name: karakeep-workers
-          target: workers
-          tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-workers:latest
-          tags_release: ghcr.io/haha2009/karakeepnew/karakeep-workers:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-workers:release
-        - image: cli
-          name: karakeep-cli
-          target: cli
-          tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-cli:latest
-          tags_release: ghcr.io/haha2009/karakeepnew/karakeep-cli:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-cli:release
-        - image: mcp
-          name: karakeep-mcp
-          target: mcp
-          tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-mcp:latest
-          tags_release: ghcr.io/haha2009/karakeepnew/karakeep-mcp:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-mcp:release
-        - image: aio
-          name: karakeep-aio
-          target: aio
-          tags_latest: ghcr.io/haha2009/karakeepnew/karakeep:latest
-          tags_release: ghcr.io/haha2009/karakeepnew/karakeep:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep:release
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+        image: [web, workers, cli, mcp, aio]
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+            os: ubuntu-latest
+          - platform: linux/arm64
+            suffix: arm64
+            os: ubuntu-24.04-arm
+          - image: web
+            name: karakeep-web
+            target: web
+            tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-web:latest
+            tags_release: ghcr.io/haha2009/karakeepnew/karakeep-web:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-web:release
+          - image: workers
+            name: karakeep-workers
+            target: workers
+            tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-workers:latest
+            tags_release: ghcr.io/haha2009/karakeepnew/karakeep-workers:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-workers:release
+          - image: cli
+            name: karakeep-cli
+            target: cli
+            tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-cli:latest
+            tags_release: ghcr.io/haha2009/karakeepnew/karakeep-cli:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-cli:release
+          - image: mcp
+            name: karakeep-mcp
+            target: mcp
+            tags_latest: ghcr.io/haha2009/karakeepnew/karakeep-mcp:latest
+            tags_release: ghcr.io/haha2009/karakeepnew/karakeep-mcp:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep-mcp:release
+          - image: aio
+            name: karakeep-aio
+            target: aio
+            tags_latest: ghcr.io/haha2009/karakeepnew/karakeep:latest
+            tags_release: ghcr.io/haha2009/karakeepnew/karakeep:${{ github.event.release.name }},ghcr.io/haha2009/karakeepnew/karakeep:release
     runs-on: ${{ matrix.os }}
     permissions:
       packages: write
@@ -108,7 +96,12 @@ jobs:
 
           echo "all=${all_tags}" >> "$GITHUB_OUTPUT"
 
+      - name: Skip non-aio/amd64 on push
+        if: ${{ github.event_name != 'release' && (matrix.image != 'aio' || matrix.platform != 'linux/amd64') }}
+        run: echo "Skipping ${{ matrix.name }} on ${{ matrix.platform }} (release-only)"
+
       - name: Build ${{ matrix.name }}
+        if: ${{ github.event_name == 'release' || (matrix.image == 'aio' && matrix.platform == 'linux/amd64') }}
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
@@ -175,7 +168,6 @@ jobs:
               "${tag}-arm64"
           }
 
-          # Update latest multi-arch manifests on release too
           IFS=',' read -ra latest_tags <<< "${TAGS_LATEST}"
           for tag in "${latest_tags[@]}"; do
             create_manifest "$tag"
