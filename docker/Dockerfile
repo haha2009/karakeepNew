@@ -67,9 +67,7 @@ RUN pnpm install --frozen-lockfile --network-concurrency 1
 
 COPY . .
 
-RUN cd packages/db && \
-    npx ncc build migrate.ts -o /db_migrations && \
-    cp -R drizzle /db_migrations
+RUN cd packages/db && npx ncc build migrate.ts -o /db_migrations && cp -R drizzle /db_migrations
 
 
 # Compile the web app
@@ -114,8 +112,17 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
     rm -f /tmp/s6-overlay-*.tar.xz
 
-# Copy the s6-overlay config
-COPY --chmod=755 ./docker/root/etc/s6-overlay /etc/s6-overlay
+# Copy the s6-overlay config (explicit per-file to avoid cache issues with CI build caches)
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/init-db-migration/type /etc/s6-overlay/s6-rc.d/init-db-migration/type
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/init-db-migration/up /etc/s6-overlay/s6-rc.d/init-db-migration/up
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/init-db-migration/run /etc/s6-overlay/s6-rc.d/init-db-migration/run
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-web/run /etc/s6-overlay/s6-rc.d/svc-web/run
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-web/type /etc/s6-overlay/s6-rc.d/svc-web/type
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-web/dependencies.d/init-db-migration /etc/s6-overlay/s6-rc.d/svc-web/dependencies.d/init-db-migration
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-workers/run /etc/s6-overlay/s6-rc.d/svc-workers/run
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-workers/type /etc/s6-overlay/s6-rc.d/svc-workers/type
+COPY ./docker/root/etc/s6-overlay/s6-rc.d/svc-workers/dependencies.d/init-db-migration /etc/s6-overlay/s6-rc.d/svc-workers/dependencies.d/init-db-migration
+RUN chmod -R 755 /etc/s6-overlay
 
 ######################
 # Install runtime deps
