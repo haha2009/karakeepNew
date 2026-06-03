@@ -804,7 +804,8 @@ export const adminAppRouter = router({
         // Only update fields that are provided
         const updateData: Record<string, unknown> = { updatedAt: new Date() };
         if (input.baseUrl !== undefined) updateData.baseUrl = input.baseUrl;
-        if (input.apiKey !== undefined) updateData.apiKey = input.apiKey;
+        if (input.apiKey !== undefined)
+          updateData.apiKey = input.apiKey || null;
         if (input.textModel !== undefined)
           updateData.textModel = input.textModel;
         if (input.imageModel !== undefined)
@@ -819,7 +820,7 @@ export const adminAppRouter = router({
       } else {
         await ctx.db.insert(providerConfig).values({
           baseUrl: input.baseUrl ?? null,
-          apiKey: input.apiKey ?? null,
+          apiKey: input.apiKey || null,
           textModel: input.textModel ?? "deepseek-v4-pro",
           imageModel: input.imageModel ?? "deepseek-v4-pro",
           outputSchema: input.outputSchema ?? "json",
@@ -833,13 +834,19 @@ export const adminAppRouter = router({
     .input(
       z.object({
         baseUrl: z.string().optional(),
-        apiKey: z.string(),
+        apiKey: z.string().optional(),
         textModel: z.string().optional(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const resolvedKey =
+        input.apiKey || (await ctx.db.query.providerConfig.findFirst())?.apiKey;
+      if (!resolvedKey) {
+        return { success: true, skipped: true };
+      }
+
       const openai = new OpenAI({
-        apiKey: input.apiKey,
+        apiKey: resolvedKey,
         baseURL: input.baseUrl || undefined,
       });
 
