@@ -2487,14 +2487,7 @@ async function runCrawler(
       await OpenAIQueue.enqueue(
         {
           bookmarkId,
-          type: "tag",
-        },
-        enqueueOpts,
-      );
-      await OpenAIQueue.enqueue(
-        {
-          bookmarkId,
-          type: "summarize",
+          type: "classify",
         },
         enqueueOpts,
       );

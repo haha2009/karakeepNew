@@ -410,7 +410,7 @@ export const bookmarksAppRouter = router({
           await OpenAIQueue.enqueue(
             {
               bookmarkId: bookmark.id,
-              type: "tag",
+              type: "classify",
             },
             enqueueOpts,
           );

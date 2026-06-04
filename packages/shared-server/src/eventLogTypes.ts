@@ -10,7 +10,7 @@ type EventLogInternal =
   | {
       ["event.name"]: "inferenceWorker.run";
       "bookmark.id": string;
-      "inference.type": "tag" | "summarize";
+      "inference.type": "tag" | "summarize" | "classify";
       "inference.model"?: string;
       "inference.total_tokens"?: number;
       "bookmark.url"?: string;

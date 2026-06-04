@@ -230,6 +230,9 @@ export const bookmarks = sqliteTable(
     summarizationStatus: text("summarizationStatus", {
       enum: ["pending", "failure", "success"],
     }).default("pending"),
+    classificationStatus: text("classificationStatus", {
+      enum: ["pending", "failure", "success"],
+    }).default("pending"),
     summary: text("summary"),
     note: text("note"),
     type: text("type", {

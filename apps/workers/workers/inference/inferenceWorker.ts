@@ -17,6 +17,7 @@ import { DequeuedJob, getQueueClient } from "@karakeep/shared/queueing";
 
 import { runSummarization } from "./summarize";
 import { runTagging } from "./tagging";
+import { runClassify } from "./classify";
 
 async function attemptMarkStatus(
   jobData: object | undefined,
@@ -34,6 +35,9 @@ async function attemptMarkStatus(
           ? { summarizationStatus: status }
           : {}),
         ...(request.type === "tag" ? { taggingStatus: status } : {}),
+        ...(request.type === "classify"
+          ? { classificationStatus: status }
+          : {}),
       })
       .where(eq(bookmarks.id, request.bookmarkId));
   } catch (e) {
@@ -129,6 +133,9 @@ async function runOpenAI(job: DequeuedJob<ZOpenAIRequest>) {
       break;
     case "tag":
       await runTagging(bookmarkId, job, inferenceClient);
+      break;
+    case "classify":
+      await runClassify(bookmarkId, job, inferenceClient);
       break;
     default:
       throw new Error(`Unknown inference type: ${request.data.type}`);

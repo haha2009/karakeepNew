@@ -294,7 +294,7 @@ export const adminAppRouter = router({
   reRunInferenceOnAllBookmarks: adminBookmarksProcedure
     .input(
       z.object({
-        type: z.enum(["tag", "summarize"]),
+        type: z.enum(["tag", "summarize", "classify"]),
         status: z.enum(["success", "failure", "pending", "all"]),
       }),
     )
@@ -312,6 +312,10 @@ export const adminAppRouter = router({
             input.status === "all"
               ? {}
               : { where: eq(bookmarks.summarizationStatus, input.status) },
+          classify:
+            input.status === "all"
+              ? {}
+              : { where: eq(bookmarks.classificationStatus, input.status) },
         }[input.type],
       });
 

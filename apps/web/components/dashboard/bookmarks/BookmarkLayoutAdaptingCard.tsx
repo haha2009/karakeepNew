@@ -349,6 +349,11 @@ function ListView({
             </div>
           )}
           {content && <div className="shrink-1 overflow-hidden">{content}</div>}
+          {bookmark.summary && (
+            <p className="line-clamp-2 shrink-0 text-sm text-muted-foreground">
+              {bookmark.summary}
+            </p>
+          )}
           {note && <NotePreview note={note} bookmarkId={bookmark.id} />}
           {showTags && (
             <div className="flex shrink-0 flex-wrap gap-1 overflow-hidden">
@@ -411,6 +416,11 @@ function GridView({
             </div>
           )}
           {content && <div className="shrink-1 overflow-hidden">{content}</div>}
+          {bookmark.summary && (
+            <p className="line-clamp-2 shrink-0 text-sm text-muted-foreground">
+              {bookmark.summary}
+            </p>
+          )}
           {note && <NotePreview note={note} bookmarkId={bookmark.id} />}
           {showTags && (
             <div className="flex shrink-0 flex-wrap gap-1 overflow-hidden">

@@ -119,7 +119,7 @@ export function buildCrawlIdempotencyKey(payload: ZCrawlLinkRequest): string {
 // Inference Worker
 export const zOpenAIRequestSchema = z.object({
   bookmarkId: z.string(),
-  type: z.enum(["summarize", "tag"]).default("tag"),
+  type: z.enum(["summarize", "tag", "classify"]).default("tag"),
 });
 export type ZOpenAIRequest = z.infer<typeof zOpenAIRequestSchema>;
 
