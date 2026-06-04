@@ -2098,11 +2098,11 @@ async function crawlAndParseUrl(
             jobId,
             abortSignal,
           );
-          // Use fallback metadata and content if the primary crawl was empty
+          // Use fallback metadata and content since the primary crawl only
+          // returned Twitter's login page (tiny, no real tweet content)
           if (
-            (fallbackResult.metadata.title ||
-              fallbackResult.readableContent?.content) &&
-            (!meta.title || htmlContent.length < 200)
+            fallbackResult.metadata.title ||
+            fallbackResult.readableContent?.content
           ) {
             logger.info(
               `[Crawler][${jobId}] Using fxtwitter fallback content (primary was ${htmlContent.length} bytes, fallback has ${fallbackHtml.length} bytes)`,
