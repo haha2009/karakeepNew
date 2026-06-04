@@ -2160,7 +2160,7 @@ async function crawlAndParseUrl(
       abortSignal.throwIfAborted();
 
       const htmlContentAssetInfo = await storeHtmlContent(
-        readableContent?.content,
+        readableContent?.content || htmlContent,
         userId,
         jobId,
       );
@@ -2195,7 +2195,7 @@ async function crawlAndParseUrl(
       const assetDeletionTasks: Promise<void>[] = [];
       const inlineHtmlContent =
         htmlContentAssetInfo.result === "store_inline"
-          ? (readableContent?.content ?? null)
+          ? readableContent?.content || htmlContent || null
           : null;
       readableContent = null;
       await db.transaction(async (txn) => {
