@@ -2002,14 +2002,45 @@ async function crawlAndParseUrl(
           url,
         };
       } else {
-        result = await crawlPage(
-          jobId,
-          url,
-          userId,
-          forceStorePdf,
-          abortSignal,
-          runProxy,
-        );
+        try {
+          result = await crawlPage(
+            jobId,
+            url,
+            userId,
+            forceStorePdf,
+            abortSignal,
+            runProxy,
+          );
+        } catch (crawlError) {
+          const fxtwitterUrl = toFxtwitterUrl(url);
+          if (fxtwitterUrl) {
+            logger.info(
+              `[Crawler][${jobId}] Primary crawl failed for Twitter URL. Attempting fxtwitter fallback.`,
+            );
+            const fallbackHtml = await fetchFxtwitterFallback(
+              url,
+              jobId,
+              abortSignal,
+              runProxy,
+            );
+            if (fallbackHtml) {
+              logger.info(
+                `[Crawler][${jobId}] fxtwitter fallback succeeded (${fallbackHtml.length} bytes). Using as primary result.`,
+              );
+              result = {
+                htmlContent: fallbackHtml,
+                screenshot: undefined,
+                pdf: undefined,
+                statusCode: 200,
+                url,
+              };
+            } else {
+              throw crawlError;
+            }
+          } else {
+            throw crawlError;
+          }
+        }
       }
       abortSignal.throwIfAborted();
 

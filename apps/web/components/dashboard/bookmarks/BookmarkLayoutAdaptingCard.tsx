@@ -234,13 +234,42 @@ function HoverActionBar({ bookmark }: { bookmark: ZBookmark }) {
   const { data: session } = useSession();
   const demoMode = !!useClientConfig().demoMode;
   const updateBookmarkMutator = useUpdateBookmark({
-    onSuccess: () => {
-      toast.success(t("toasts.bookmarks.updated"));
-    },
     onError: () => {
       toast.error(t("common.something_went_wrong"));
     },
   });
+  const toggleFavourite = () => {
+    logUserAction("Toggle Favorite", {
+      bookmarkId: bookmark.id,
+      value: !bookmark.favourited,
+    });
+    updateBookmarkMutator.mutate(
+      { bookmarkId: bookmark.id, favourited: !bookmark.favourited },
+      {
+        onSuccess: () =>
+          toast.success(
+            bookmark.favourited
+              ? t("actions.unfavorite")
+              : t("actions.favorite"),
+          ),
+      },
+    );
+  };
+  const toggleArchive = () => {
+    logUserAction("Toggle Archive", {
+      bookmarkId: bookmark.id,
+      value: !bookmark.archived,
+    });
+    updateBookmarkMutator.mutate(
+      { bookmarkId: bookmark.id, archived: !bookmark.archived },
+      {
+        onSuccess: () =>
+          toast.success(
+            bookmark.archived ? t("actions.unarchive") : t("actions.archive"),
+          ),
+      },
+    );
+  };
 
   const isOwner = session?.user?.id === bookmark.userId;
   if (!isOwner || isBulkEditEnabled || demoMode) return null;
@@ -255,14 +284,7 @@ function HoverActionBar({ bookmark }: { bookmark: ZBookmark }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          logUserAction("Toggle Favorite", {
-            bookmarkId: bookmark.id,
-            value: !bookmark.favourited,
-          });
-          updateBookmarkMutator.mutate({
-            bookmarkId: bookmark.id,
-            favourited: !bookmark.favourited,
-          });
+          toggleFavourite();
         }}
       >
         <FavouritedActionIcon favourited={bookmark.favourited} size={16} />
@@ -275,14 +297,7 @@ function HoverActionBar({ bookmark }: { bookmark: ZBookmark }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          logUserAction("Toggle Archive", {
-            bookmarkId: bookmark.id,
-            value: !bookmark.archived,
-          });
-          updateBookmarkMutator.mutate({
-            bookmarkId: bookmark.id,
-            archived: !bookmark.archived,
-          });
+          toggleArchive();
         }}
       >
         <ArchivedActionIcon archived={bookmark.archived} size={16} />
