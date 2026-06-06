@@ -87,6 +87,24 @@ export const zBookmarkContentSchema = z.discriminatedUnion("type", [
 ]);
 export type ZBookmarkContent = z.infer<typeof zBookmarkContentSchema>;
 
+export const zGitHubProjectSchema = z.object({
+  fullName: z.string(),
+  url: z.string(),
+  name: z.string(),
+  owner: z.string(),
+  description: z.string().nullable(),
+  stars: z.number().nullable(),
+  language: z.string().nullable(),
+  topics: z.array(z.string()).nullable(),
+  homepage: z.string().nullable(),
+  license: z.string().nullable(),
+  humanSummary: z.string().nullable(),
+  agentDossier: z.any().nullable(),
+  tags: z.array(z.string()).nullable(),
+  lastFetchedAt: z.date().nullable(),
+});
+export type ZGitHubProject = z.infer<typeof zGitHubProjectSchema>;
+
 export const zBookmarkSourceSchema = z.enum([
   "api",
   "web",
@@ -122,6 +140,7 @@ export const zBookmarkSchema = zBareBookmarkSchema.extend(
     tags: z.array(zBookmarkTagSchema),
     content: zBookmarkContentSchema,
     assets: z.array(zAssetSchema),
+    githubProject: zGitHubProjectSchema.nullish(),
   }).shape,
 );
 export type ZBookmark = z.infer<typeof zBookmarkSchema>;
@@ -131,6 +150,7 @@ const zBookmarkTypeLinkSchema = zBareBookmarkSchema.extend(
     tags: z.array(zBookmarkTagSchema),
     content: zBookmarkedLinkSchema,
     assets: z.array(zAssetSchema),
+    githubProject: zGitHubProjectSchema.nullish(),
   }).shape,
 );
 export type ZBookmarkTypeLink = z.infer<typeof zBookmarkTypeLinkSchema>;

@@ -6,6 +6,7 @@ import { backupsAppRouter } from "./backups";
 import { bookmarksAppRouter } from "./bookmarks";
 import { configAppRouter } from "./config";
 import { feedsAppRouter } from "./feeds";
+import { githubAppRouter } from "./github";
 import { highlightsAppRouter } from "./highlights";
 import { importSessionsRouter } from "./importSessions";
 import { invitesAppRouter } from "./invites";
@@ -37,6 +38,7 @@ export const appRouter = router({
   publicBookmarks: publicBookmarks,
   subscriptions: subscriptionsRouter,
   config: configAppRouter,
+  github: githubAppRouter,
 });
 // export type definition of API
 export type AppRouter = typeof appRouter;

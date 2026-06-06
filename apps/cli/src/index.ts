@@ -1,4 +1,5 @@
 import { adminCmd } from "@/commands/admin";
+import { agentCmd } from "@/commands/agent";
 import { authCmd } from "@/commands/auth";
 import { bookmarkCmd } from "@/commands/bookmarks";
 import { dumpCmd } from "@/commands/dump";
@@ -73,6 +74,7 @@ const program = new Command()
   );
 
 program.addCommand(adminCmd);
+program.addCommand(agentCmd);
 program.addCommand(authCmd);
 program.addCommand(bookmarkCmd);
 program.addCommand(highlightsCmd);

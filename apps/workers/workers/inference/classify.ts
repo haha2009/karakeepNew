@@ -9,6 +9,7 @@ import {
   bookmarkLists,
   bookmarksInLists,
   customPrompts,
+  githubProjects,
   users,
 } from "@karakeep/db/schema";
 import {
@@ -26,6 +27,7 @@ import { Bookmark } from "@karakeep/trpc/models/bookmarks";
 import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
 
 import { connectTags } from "./tagging";
+import { autoCreateGitHubBookmarks } from "./github";
 
 const openAIResponseSchema = z.object({
   summary: z.string(),
@@ -137,9 +139,178 @@ async function fetchBookmarkDetails(bookmarkId: string) {
           text: true,
         },
       },
+      githubProject: {
+        columns: {
+          id: true,
+          fullName: true,
+          description: true,
+          stars: true,
+          language: true,
+          topics: true,
+          homepage: true,
+          license: true,
+          humanSummary: true,
+          agentDossier: true,
+        },
+      },
     },
   });
   return bookmark;
+}
+
+const gitHubResponseSchema = z.object({
+  summary: z.string(),
+  tags: z.array(z.string()),
+  targetFolder: z.string().nullable(),
+  agentDossier: z.record(z.string(), z.unknown()).optional(),
+});
+
+async function classifyGitHubProject(
+  bookmarkId: string,
+  userId: string,
+  ghProject: { id: string; fullName: string; humanSummary: string | null },
+  job: DequeuedJob<ZOpenAIRequest>,
+  inferenceClient: InferenceClient,
+  _textContent: string,
+) {
+  const jobId = job.id;
+
+  if (ghProject.humanSummary) {
+    logger.info(
+      `[inference][${jobId}] GitHub project ${ghProject.fullName} already has humanSummary, skipping`,
+    );
+    return;
+  }
+
+  const lang = serverConfig.inference.inferredTagLang;
+
+  const systemPrompt = `You are an expert developer analyzing a GitHub project. Return structured information.
+
+Analyze the GitHub project metadata and return a JSON object with:
+{
+  "summary": "A one-sentence description of what this project does (in ${lang}). Max 150 characters.",
+  "tags": ["tag1", "tag2", "tag3"],
+  "targetFolder": null,
+  "agentDossier": {
+    "purpose": "What problem this project solves",
+    "techStack": ["list", "of", "key", "technologies"],
+    "architecture": "Brief architecture description",
+    "keyFeatures": ["feature1", "feature2"],
+    "useCases": ["use", "case", "descriptions"]
+  }
+}
+
+Rules:
+- Summary: Must be in ${lang}, concise, straight to the point.
+- Tags: 3-5 tags in English lowercase. Use hyphens for multi-word tags. Reflect language, purpose, domain.
+- agentDossier: Populate with your technical analysis. Be specific and accurate.`;
+
+  const githubMeta = await db.query.githubProjects.findFirst({
+    where: eq(githubProjects.id, ghProject.id),
+    columns: {
+      fullName: true,
+      description: true,
+      stars: true,
+      language: true,
+      topics: true,
+      license: true,
+    },
+  });
+
+  const contentPrompt = `<GITHUB_PROJECT>
+${
+  githubMeta
+    ? `Full Name: ${githubMeta.fullName}
+Description: ${githubMeta.description ?? ""}
+Stars: ${githubMeta.stars ?? "unknown"}
+Language: ${githubMeta.language ?? "unknown"}
+Topics: ${(githubMeta.topics ?? []).join(", ")}
+License: ${githubMeta.license ?? "unknown"}`
+    : ghProject.fullName
+}
+</GITHUB_PROJECT>
+
+Return ONLY valid JSON.`;
+
+  const fullPrompt = `${systemPrompt}\n\n${contentPrompt}`;
+
+  addLogFields<"inferenceWorker.run">({
+    "inference.prompt.size": Buffer.byteLength(fullPrompt, "utf8"),
+  });
+
+  const inferenceResult = await inferenceClient.inferFromText(fullPrompt, {
+    schema: gitHubResponseSchema,
+    abortSignal: job.abortSignal,
+  });
+
+  if (!inferenceResult.response) {
+    throw new Error(
+      `[inference][${jobId}] Failed to classify GitHub project ${bookmarkId}, empty response.`,
+    );
+  }
+
+  let parsed: z.infer<typeof gitHubResponseSchema>;
+  try {
+    parsed = gitHubResponseSchema.parse(
+      parseJsonFromLLMResponse(inferenceResult.response),
+    );
+  } catch (e) {
+    throw new Error(
+      `[inference][${jobId}] Failed to parse GitHub project response: ${e}. Raw: ${inferenceResult.response.substring(0, 100)}`,
+    );
+  }
+
+  logger.info(
+    `[inference][${jobId}] Classified GitHub project "${ghProject.fullName}" using ${inferenceResult.totalTokens} tokens. Summary: "${parsed.summary.substring(0, 60)}...", Tags: ${parsed.tags.join(", ")}`,
+  );
+
+  await db
+    .update(githubProjects)
+    .set({
+      humanSummary: parsed.summary,
+      agentDossier: parsed.agentDossier ?? null,
+      tags: parsed.tags,
+      modifiedAt: new Date(),
+    })
+    .where(eq(githubProjects.id, ghProject.id));
+
+  if (parsed.summary) {
+    await db
+      .update(bookmarks)
+      .set({
+        summary: parsed.summary,
+        modifiedAt: new Date(),
+      })
+      .where(eq(bookmarks.id, bookmarkId));
+  }
+
+  if (parsed.tags.length > 0) {
+    const cleanedTags = parsed.tags
+      .map((t) => {
+        let tag = t;
+        if (tag.startsWith("#")) tag = tag.slice(1);
+        return tag.trim();
+      })
+      .filter(Boolean);
+    await connectTags(bookmarkId, cleanedTags, userId);
+  }
+
+  const enqueueOpts: EnqueueOptions = {
+    priority: job.priority,
+    groupId: userId,
+  };
+
+  {
+    const webhookService = new WebhooksService(db);
+    await webhookService.triggerWebhook(
+      bookmarkId,
+      "ai tagged",
+      userId,
+      enqueueOpts,
+    );
+  }
+
+  await triggerSearchReindex(bookmarkId, enqueueOpts);
 }
 
 export async function runClassify(
@@ -239,6 +410,17 @@ Author: ${link.author ?? ""}
       `[inference][${jobId}] No content to classify for bookmark "${bookmarkId}".`,
     );
     return;
+  }
+
+  if (bookmarkData.githubProject) {
+    return classifyGitHubProject(
+      bookmarkId,
+      bookmarkData.userId,
+      bookmarkData.githubProject,
+      job,
+      inferenceClient,
+      textContent,
+    );
   }
 
   const allLists = await db.query.bookmarkLists.findMany({
@@ -404,4 +586,6 @@ Return ONLY valid JSON.`;
   }
 
   await triggerSearchReindex(bookmarkId, enqueueOpts);
+
+  await autoCreateGitHubBookmarks(bookmarkData.userId, bookmarkId, textContent);
 }

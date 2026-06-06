@@ -1020,6 +1020,10 @@ export const bookmarkRelations = relations(bookmarks, ({ many, one }) => ({
   assets: many(assets),
   rssFeeds: many(rssFeedImportsTable),
   importSessionBookmarks: many(importSessionBookmarks),
+  githubProject: one(githubProjects, {
+    fields: [bookmarks.id],
+    references: [githubProjects.bookmarkId],
+  }),
 }));
 
 export const assetRelations = relations(assets, ({ one }) => ({
@@ -1240,6 +1244,107 @@ export const userReadingProgressRelations = relations(
     user: one(users, {
       fields: [userReadingProgress.userId],
       references: [users.id],
+    }),
+  }),
+);
+
+// ── GitHub Projects ─────────────────────────────────────────────────
+// One record per unique GitHub repo (identified by owner/name).
+// Dedup by fullName, updated on re-fetch with 24h cache window.
+
+export const githubProjects = sqliteTable(
+  "githubProjects",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bookmarkId: text("bookmarkId").references(() => bookmarks.id, {
+      onDelete: "set null",
+    }),
+    fullName: text("fullName").notNull(),
+    url: text("url").notNull(),
+    name: text("name").notNull(),
+    owner: text("owner").notNull(),
+    description: text("description"),
+    stars: integer("stars"),
+    language: text("language"),
+    topics: text("topics", { mode: "json" }).$type<string[]>(),
+    homepage: text("homepage"),
+    license: text("license"),
+    agentDossier: text("agentDossier", { mode: "json" }).$type<
+      Record<string, unknown>
+    >(),
+    humanSummary: text("humanSummary"),
+    tags: text("tags", { mode: "json" }).$type<string[]>(),
+    lastFetchedAt: integer("lastFetchedAt", { mode: "timestamp" }),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (table) => [
+    unique("githubProjects_fullName_unique").on(table.fullName),
+    index("githubProjects_userId_idx").on(table.userId),
+    index("githubProjects_fullName_idx").on(table.fullName),
+  ],
+);
+
+export const projectRecommendations = sqliteTable(
+  "projectRecommendations",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    projectId: text("projectId")
+      .notNull()
+      .references(() => githubProjects.id, { onDelete: "cascade" }),
+    bookmarkId: text("bookmarkId").references(() => bookmarks.id, {
+      onDelete: "set null",
+    }),
+    recommenderUsername: text("recommenderUsername"),
+    recommenderDisplayName: text("recommenderDisplayName"),
+    recommenderAvatarUrl: text("recommenderAvatarUrl"),
+    originalPostUrl: text("originalPostUrl"),
+    recommendationContext: text("recommendationContext"),
+    recommendedAt: integer("recommendedAt", { mode: "timestamp" }),
+    createdAt: createdAtField(),
+  },
+  (table) => [
+    index("projectRecommendations_projectId_idx").on(table.projectId),
+    index("projectRecommendations_recommenderUsername_idx").on(
+      table.recommenderUsername,
+    ),
+  ],
+);
+
+export const githubProjectsRelations = relations(
+  githubProjects,
+  ({ many, one }) => ({
+    user: one(users, {
+      fields: [githubProjects.userId],
+      references: [users.id],
+    }),
+    bookmark: one(bookmarks, {
+      fields: [githubProjects.bookmarkId],
+      references: [bookmarks.id],
+    }),
+    recommendations: many(projectRecommendations),
+  }),
+);
+
+export const projectRecommendationsRelations = relations(
+  projectRecommendations,
+  ({ one }) => ({
+    project: one(githubProjects, {
+      fields: [projectRecommendations.projectId],
+      references: [githubProjects.id],
+    }),
+    bookmark: one(bookmarks, {
+      fields: [projectRecommendations.bookmarkId],
+      references: [bookmarks.id],
     }),
   }),
 );

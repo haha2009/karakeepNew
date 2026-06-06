@@ -28,6 +28,7 @@ import {
   bookmarkTexts,
   rssFeedImportsTable,
   tagsOnBookmarks,
+  githubProjects,
 } from "@karakeep/db/schema";
 import { SearchIndexingQueue } from "@karakeep/shared-server";
 
@@ -67,6 +68,7 @@ async function dummyDrizzleReturnType() {
       text: true,
       asset: true,
       assets: true,
+      githubProject: true,
     },
   });
   if (!x) {
@@ -152,7 +154,15 @@ export class Bookmark extends BareBookmark {
     bookmark: BookmarkQueryReturnType,
     includeContent: boolean,
   ): Promise<ZBookmark> {
-    const { tagsOnBookmarks, link, text, asset, assets, ...rest } = bookmark;
+    const {
+      tagsOnBookmarks,
+      link,
+      text,
+      asset,
+      assets,
+      githubProject,
+      ...rest
+    } = bookmark;
 
     let content: ZBookmarkContent = {
       type: BookmarkTypes.UNKNOWN,
@@ -226,6 +236,7 @@ export class Bookmark extends BareBookmark {
         assetType: mapDBAssetTypeToUserType(a.assetType),
         fileName: a.fileName,
       })),
+      githubProject: githubProject ?? undefined,
       ...rest,
     };
   }
@@ -247,6 +258,7 @@ export class Bookmark extends BareBookmark {
         text: true,
         asset: true,
         assets: true,
+        githubProject: true,
       },
     });
 
@@ -570,6 +582,7 @@ export class Bookmark extends BareBookmark {
       .leftJoin(bookmarkTexts, eq(bookmarkTexts.id, sq.id))
       .leftJoin(bookmarkAssets, eq(bookmarkAssets.id, sq.id))
       .leftJoin(assets, eq(assets.bookmarkId, sq.id))
+      .leftJoin(githubProjects, eq(githubProjects.bookmarkId, sq.id))
       .orderBy(desc(sq.createdAt), desc(sq.id));
 
     const bookmarksRes = results.reduce<Record<string, ZBookmark>>(
@@ -626,6 +639,24 @@ export class Bookmark extends BareBookmark {
             content,
             tags: [],
             assets: [],
+            githubProject: row.githubProjects
+              ? {
+                  fullName: row.githubProjects.fullName,
+                  url: row.githubProjects.url,
+                  name: row.githubProjects.name,
+                  owner: row.githubProjects.owner,
+                  description: row.githubProjects.description,
+                  stars: row.githubProjects.stars,
+                  language: row.githubProjects.language,
+                  topics: row.githubProjects.topics,
+                  homepage: row.githubProjects.homepage,
+                  license: row.githubProjects.license,
+                  humanSummary: row.githubProjects.humanSummary,
+                  agentDossier: row.githubProjects.agentDossier,
+                  tags: row.githubProjects.tags,
+                  lastFetchedAt: row.githubProjects.lastFetchedAt,
+                }
+              : undefined,
           };
         }
 

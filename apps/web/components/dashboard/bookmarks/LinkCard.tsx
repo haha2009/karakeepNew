@@ -15,6 +15,7 @@ import {
 
 import { BookmarkLayoutAdaptingCard } from "./BookmarkLayoutAdaptingCard";
 import FooterLinkURL from "./FooterLinkURL";
+import GitHubProjectBadge from "./GitHubProjectBadge";
 
 const useOnClickUrl = (bookmark: ZBookmarkTypeLink) => {
   const userSettings = useUserSettings();
@@ -111,6 +112,11 @@ export default function LinkCard({
   return (
     <BookmarkLayoutAdaptingCard
       title={<LinkTitle bookmark={bookmarkLink} />}
+      content={
+        bookmarkLink.githubProject ? (
+          <GitHubProjectBadge project={bookmarkLink.githubProject} />
+        ) : undefined
+      }
       footer={<FooterLinkURL url={getSourceUrl(bookmarkLink)} />}
       bookmark={bookmarkLink}
       wrapTags={false}
