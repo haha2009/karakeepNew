@@ -162,7 +162,7 @@ const gitHubResponseSchema = z.object({
   summary: z.string(),
   tags: z.array(z.string()),
   targetFolder: z.string().nullable(),
-  agentDossier: z.record(z.string(), z.unknown()).optional(),
+  agentDossier: z.record(z.string(), z.unknown()).nullable(),
 });
 
 async function classifyGitHubProject(
