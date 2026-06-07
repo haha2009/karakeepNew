@@ -8,14 +8,13 @@ import { useUserSettings } from "@/lib/userSettings";
 import type { ZBookmarkTypeLink } from "@karakeep/shared/types/bookmarks";
 import {
   getBookmarkLinkImageUrl,
-  getBookmarkTitle,
   getSourceUrl,
   isBookmarkStillCrawling,
 } from "@karakeep/shared/utils/bookmarkUtils";
 
 import { BookmarkLayoutAdaptingCard } from "./BookmarkLayoutAdaptingCard";
 import FooterLinkURL from "./FooterLinkURL";
-import GitHubProjectBadge from "./GitHubProjectBadge";
+import { formatStars } from "./GitHubProjectBadge";
 
 const useOnClickUrl = (bookmark: ZBookmarkTypeLink) => {
   const userSettings = useUserSettings();
@@ -36,7 +35,17 @@ function LinkTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
   const parsedUrl = new URL(bookmark.content.url);
   return (
     <Link href={onClickUrl} target={urlTarget} rel="noreferrer">
-      {getBookmarkTitle(bookmark) ?? parsedUrl.host}
+      {bookmark.content.title ?? parsedUrl.host}
+    </Link>
+  );
+}
+
+function GitHubTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
+  const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
+  const gh = bookmark.githubProject;
+  return (
+    <Link href={onClickUrl} target={urlTarget} rel="noreferrer">
+      {gh?.humanSummary ?? bookmark.content.title ?? bookmark.content.url}
     </Link>
   );
 }
@@ -109,14 +118,37 @@ export default function LinkCard({
   className?: string;
   bookmarkIndex?: number;
 }) {
+  const gh = bookmarkLink.githubProject;
+
+  if (gh) {
+    const ghBookmark = { ...bookmarkLink, summary: null };
+
+    return (
+      <BookmarkLayoutAdaptingCard
+        title={<GitHubTitle bookmark={bookmarkLink} />}
+        footer={<FooterLinkURL url={getSourceUrl(bookmarkLink)} />}
+        bookmark={ghBookmark}
+        wrapTags={false}
+        image={(_layout, className) => (
+          <div className="relative size-full">
+            <LinkImage className={className} bookmark={bookmarkLink} />
+            <div className="pointer-events-none absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white backdrop-blur-sm">
+              <span>{gh.fullName.split("/")[1]}</span>
+              {typeof gh.stars === "number" && (
+                <span>⭐{formatStars(gh.stars)}</span>
+              )}
+            </div>
+          </div>
+        )}
+        className={className}
+        bookmarkIndex={bookmarkIndex}
+      />
+    );
+  }
+
   return (
     <BookmarkLayoutAdaptingCard
       title={<LinkTitle bookmark={bookmarkLink} />}
-      content={
-        bookmarkLink.githubProject ? (
-          <GitHubProjectBadge project={bookmarkLink.githubProject} />
-        ) : undefined
-      }
       footer={<FooterLinkURL url={getSourceUrl(bookmarkLink)} />}
       bookmark={bookmarkLink}
       wrapTags={false}

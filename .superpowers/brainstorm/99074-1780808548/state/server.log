@@ -1,0 +1,12 @@
+{"type":"server-started","port":53607,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:53607","screen_dir":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/content","state_dir":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/state"}
+{"type":"screen-added","file":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/content/layout-options.html"}
+{"type":"screen-added","file":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/content/waiting.html"}
+{"type":"screen-added","file":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/content/layout-v2.html"}
+{"source":"user-event","type":"click","text":"1\n      \n        保留星标 ⭐\n        项目名旁边显示星标数，其他技术信息不要","choice":"keep-star","id":null,"timestamp":1780808771484}
+{"source":"user-event","type":"click","text":"2\n      \n        全去掉\n        只要一句话 + 项目名 + 标签，不要任何数字","choice":"no-star","id":null,"timestamp":1780808776302}
+{"source":"user-event","type":"click","text":"1\n      \n        保留星标 ⭐\n        项目名旁边显示星标数，其他技术信息不要","choice":"keep-star","id":null,"timestamp":1780808778100}
+{"source":"user-event","type":"click","text":"2\n      \n        全去掉\n        只要一句话 + 项目名 + 标签，不要任何数字","choice":"no-star","id":null,"timestamp":1780808810852}
+{"type":"screen-added","file":"/Users/claw/Projects/test/karakeep/.superpowers/brainstorm/99074-1780808548/content/layout-v3.html"}
+{"source":"user-event","type":"click","text":"✏️\n      还想微调在终端告诉我改哪里","choice":"tweak","id":null,"timestamp":1780808964203}
+{"source":"user-event","type":"click","text":"✏️\n      还想微调在终端告诉我改哪里","choice":"tweak","id":null,"timestamp":1780808967846}
+{"type":"server-stopped","reason":"idle timeout"}

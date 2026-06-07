@@ -1,47 +1,59 @@
 # Karakeep
 
-一站式信息收藏与管理平台。Monorepo (Turborepo + pnpm)。
+一站式信息收藏与管理平台。Monorepo (Turborepo + pnpm)。单用户服务（产品经理 + AI 开发者）。
 
 ## 工作流
 
+### 核心理念
+
+**你只做两件事：提需求 + 验收，其余 Agent 干。**
+
+### 上线路径
+
 ```
-你提需求 → Agent拆任务(todowrite) → 逐个开发/提交
-  → typecheck+lint → 推main → CI构建镜像
-  → Agent通知"准备好了" → 你说"上线"
-  → bash scripts/deploy.sh → 健康检查通过 → 完成
+日常（90%）：改代码 → typecheck → bash scripts/hotfix.sh → 30秒上线
+落地（10%）：改 schema/依赖 → bash scripts/build-deploy.sh → 本地 build → SCP → 上线
 ```
 
-### 流程说明
+### 你 vs Agent
 
-| 阶段 | 你做 | Agent做 |
-|------|------|---------|
-| 需求 | 描述你要什么 | 拆成具体任务，写入 todowrite |
-| 开发 | 配合确认 | 逐个实现任务，每次提交过 pre-commit |
-| 验证 | — | `pnpm typecheck && pnpm lint` 确保质量 |
-| 上线 | 说"上线" | 执行 `bash scripts/deploy.sh`，验证 HTTP 200 |
+| 你 | Agent |
+|----|-------|
+| "加个 X 功能" | 拆任务 → 改代码 → typecheck → hotfix |
+| "改个 Y" | 定位 → 改 → typecheck → hotfix |
+| "线上有问题" | 查日志 → 修 → hotfix → 健康检查 |
+| "回滚" | docker compose up -d（回到镜像版本）|
 
-### 自我进化
+### 三种部署模式
 
-每次上线后，Agent 自动评估工作流哪里卡顿，更新本文档。流程是活的，用着不顺就改。
+| 模式 | 命令 | 耗时 | 适用场景 |
+|------|------|------|---------|
+| 热修复 | `bash scripts/hotfix.sh workers\|cli\|all` | ~30s | 纯 JS 改动（worker/CLI 逻辑） |
+| 本地构建 | `bash scripts/build-deploy.sh` | ~5-15min | schema 变更、依赖改、前端、Dockerfile |
+| CI 构建 | `push main` → CI → `bash scripts/deploy.sh` | ~12min | 需 ghcr.io 镜像的场景 |
+
+### 安全保证
+
+- **typecheck 是底线**：不通过不部署
+- **自动健康检查**：HTTP 非 200 自动提示回滚命令
+- **备份旧文件**：热修前自动备份原文件
+- **回滚随时**：`docker compose up -d --force-recreate web` 恢复镜像版本
 
 ## 快速入口
 
-- **架构文档** → [docs/internal/architecture/](docs/internal/architecture/)
-- **开发指南** → [docs/internal/development/](docs/internal/setup/)
-- **规范标准** → [docs/internal/standards/](docs/internal/standards/)
-- **爬虫系统** → [docs/internal/crawler/](docs/internal/crawler/)
-- **产品文档** → [docs/internal/product/](docs/internal/product/)
-- **Agent 速查** → [.claude/brief.md](.claude/brief.md)
+- **快速部署** → `bash scripts/hotfix.sh workers`
+- **完整构建** → `bash scripts/build-deploy.sh`
+- **旧版 CI** → `bash scripts/deploy.sh`
 - **部署纪要** → [.claude/deployment.md](.claude/deployment.md)
+- **架构文档** → [docs/internal/architecture/](docs/internal/architecture/)
 
 ## 核心命令
 
 | 命令 | 用途 |
 |------|------|
-| `pnpm dev` | 启动开发环境 |
 | `pnpm typecheck` | 类型检查 |
-| `pnpm test` | 运行测试 |
-| `pnpm lint:fix` | 自动修复 lint |
+| `pnpm lint` | 代码规范 |
 | `pnpm format:fix` | 自动格式化 |
-| `pnpm db:generate --name <desc>` | 数据库迁移 |
-| `bash scripts/deploy.sh` | 一键部署到生产 |
+| `bash scripts/hotfix.sh workers` | 热修 worker（最快部署路径） |
+| `bash scripts/build-deploy.sh` | 本地 Docker 构建 + 部署 |
+| `bash scripts/deploy.sh` | 旧版：ghcr pull → SCP → 部署 |

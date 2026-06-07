@@ -5,6 +5,7 @@ export interface GitHubRepoMetadata {
   url: string;
   name: string;
   owner: string;
+  ownerAvatarUrl: string;
   description: string | null;
   stars: number;
   language: string | null;
@@ -62,6 +63,7 @@ export async function fetchGitHubRepoMetadata(
     url: data.html_url,
     name: data.name,
     owner: data.owner.login,
+    ownerAvatarUrl: data.owner.avatar_url,
     description: data.description,
     stars: data.stargazers_count,
     language: data.language,

@@ -1,0 +1,80 @@
+feature: 2026-06-06-bookmark-agent
+created: 2026-06-06
+
+steps:
+  - action: "数据层：新增 github_projects + project_recommendations 表，编写迁移脚本"
+    exit_signal: "表创建成功，可正常读写"
+    status: pending
+
+  - action: "GitHub 检测：URL 解析识别 github.com/owner/repo → GitHub API 获取元数据"
+    exit_signal: "收藏 GitHub 链接后自动获取 stars/language/topics"
+    status: pending
+
+  - action: "AI 分析：新增 analyze-project 推理类型 → 生成 humanSummary + agentDossier + tags"
+    exit_signal: "收藏项目后自动生成双层级总结"
+    status: pending
+
+  - action: "博主追踪：从 X 收藏提取推荐人 + 原文 → 写入 project_recommendations"
+    exit_signal: "同项目多个推荐被正确聚合，多视角总结生成"
+    status: pending
+
+  - action: "Web UI：项目卡片组件 + 标签展示 + 博主推荐列表"
+    exit_signal: "页面展示所有项目、标签、推荐关系"
+    status: pending
+
+  - action: "Agent CLI：karakeep agent find/project/profile → 支持 --json 输出"
+    exit_signal: "karakeep agent find 'rust' --json 返回正确 JSON"
+    status: pending
+
+  - action: "兴趣画像：从所有收藏项目自动归纳兴趣方向"
+    exit_signal: "karakeep agent profile 展示准确的兴趣分析"
+    status: pending
+
+  - action: "Vibe Coding 场景：模拟'我想做个 X' → Agent 推荐最匹配项目"
+    exit_signal: "推荐结果人工判断合理"
+    status: pending
+
+checks:
+  - item: "收藏 GitHub 链接后自动识别并显示 stars/language/topics"
+    source: 验收场景
+    status: pending
+
+  - item: "项目卡片展示 Human Summary + 标签"
+    source: 验收场景
+    status: pending
+
+  - item: "X 收藏记录博主 + 推荐原文"
+    source: 验收场景
+    status: pending
+
+  - item: "同项目多推荐被聚合为多视角总结"
+    source: 验收场景
+    status: pending
+
+  - item: "karakeep agent find --json 返回正确 JSON"
+    source: 验收场景
+    status: pending
+
+  - item: "karakeep agent profile 展示兴趣画像"
+    source: 验收场景
+    status: pending
+
+  - item: "Agent 根据需求推荐最匹配项目"
+    source: 验收场景
+    status: pending
+
+  - item: "收藏非 GitHub 链接不影响项目系统"
+    source: 范围守护
+    status: pending
+
+  - item: "Agent CLI 不做修改操作"
+    source: 范围守护
+    status: pending
+
+  - item: "github_projects 表使用 fullName 唯一约束防重复"
+    source: 流程级约束
+    status: pending
+
+  - item: "GitHub API 数据 24h 缓存不重复 fetch"
+    source: 流程级约束
+    status: pending

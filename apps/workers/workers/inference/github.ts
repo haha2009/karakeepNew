@@ -1,8 +1,14 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@karakeep/db";
-import { bookmarkLinks, bookmarks, githubProjects } from "@karakeep/db/schema";
-import { OpenAIQueue } from "@karakeep/shared-server";
+import {
+  bookmarkLinks,
+  bookmarks,
+  bookmarkLists,
+  bookmarksInLists,
+  githubProjects,
+} from "@karakeep/db/schema";
+import { LinkCrawlerQueue, OpenAIQueue } from "@karakeep/shared-server";
 import {
   extractGitHubRepo,
   fetchGitHubRepoMetadata,
@@ -92,6 +98,7 @@ export async function autoCreateGitHubBookmarks(
       url: meta.url,
       title: meta.description ?? meta.name,
       description: meta.description,
+      imageUrl: meta.ownerAvatarUrl,
     });
 
     await db.insert(githubProjects).values({
@@ -109,6 +116,26 @@ export async function autoCreateGitHubBookmarks(
       license: meta.license,
       lastFetchedAt: new Date(),
     });
+
+    const ghFolder = await db.query.bookmarkLists.findFirst({
+      where: and(
+        eq(bookmarkLists.userId, userId),
+        eq(bookmarkLists.name, "GitHub"),
+      ),
+      columns: { id: true },
+    });
+
+    if (ghFolder) {
+      await db
+        .insert(bookmarksInLists)
+        .values({ listId: ghFolder.id, bookmarkId: bookmark.id })
+        .onConflictDoNothing();
+    }
+
+    await LinkCrawlerQueue.enqueue(
+      { bookmarkId: bookmark.id },
+      { groupId: userId },
+    );
 
     await OpenAIQueue.enqueue(
       { bookmarkId: bookmark.id, type: "classify" },

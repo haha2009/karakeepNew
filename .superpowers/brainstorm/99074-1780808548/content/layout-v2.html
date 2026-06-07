@@ -1,0 +1,79 @@
+<h2>GitHub 卡片 V2 — 看看这个方向</h2>
+<p class="subtitle">一句话当主角，项目名弱化，不要技术指标，保留中文标签</p>
+
+<div class="mockup" style="max-width:400px;margin:0 auto">
+  <div class="mockup-body" style="padding:0">
+    
+    <!-- 卡片 -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+      
+      <!-- 图片占位 （和现有卡片一样保留缩略图） -->
+      <div style="height:100px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:12px;color:#d1d5db">缩略图</div>
+      
+      <div style="padding:12px">
+        
+        <!-- 一句话（主角，大号） -->
+        <div style="font-size:15px;font-weight:500;color:#111;line-height:1.5;margin-bottom:6px">
+          开源网络映射与安全扫描工具，帮助企业发现网络资产与安全漏洞。
+        </div>
+        
+        <!-- 项目名（弱化，灰色小字） -->
+        <div style="font-size:11px;color:#9ca3af;margin-bottom:10px">
+          Blisqy  ·  ⭐ 1.2k
+        </div>
+        
+        <!-- 中文标签 -->
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          <span style="background:#f3f4f6;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280">网络安全</span>
+          <span style="background:#f3f4f6;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280">端口扫描</span>
+          <span style="background:#f3f4f6;border-radius:4px;padding:2px 8px;font-size:11px;color:#6b7280">工具</span>
+        </div>
+        
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<div style="margin-top:24px;display:flex;flex-direction:column;gap:8px">
+  <p style="color:#6b7280">跟现在的区别：</p>
+  <table style="font-size:13px;border-collapse:collapse">
+    <tr><td style="padding:4px 12px 4px 0;color:#9ca3af">现在</td><td>JohnTroony/Blisqy（大标题）→ 星标/语言/许可证（badge）→ 灰色小字一句话</td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#9ca3af">V2</td><td>一句话（大号）→ Blisqy · ⭐（灰色小字）→ 中文标签</td></tr>
+  </table>
+</div>
+
+<div style="margin-top:20px">
+
+  <p style="margin-bottom:8px;font-weight:500">想微调的地方：</p>
+
+  <div class="options" style="grid-template-columns:1fr">
+
+    <div class="option" data-choice="keep-star" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>保留星标 ⭐</h3>
+        <p>项目名旁边显示星标数，其他技术信息不要</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="no-star" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>全去掉</h3>
+        <p>只要一句话 + 项目名 + 标签，不要任何数字</p>
+      </div>
+    </div>
+
+    <div class="option" data-choice="no-name" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>项目名也不要</h3>
+        <p>卡片只有一句话 + 标签，最极简</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="margin-top:16px;color:#6b7280">先看大方向对不对，再回终端告诉我微调意见</p>

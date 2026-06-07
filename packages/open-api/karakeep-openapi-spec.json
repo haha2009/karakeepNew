@@ -163,6 +163,16 @@
               null
             ]
           },
+          "classificationStatus": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "success",
+              "failure",
+              "pending",
+              null
+            ]
+          },
           "note": {
             "type": "string",
             "nullable": true
@@ -431,6 +441,85 @@
                 "assetType"
               ]
             }
+          },
+          "githubProject": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "fullName": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "stars": {
+                "type": "number",
+                "nullable": true
+              },
+              "language": {
+                "type": "string",
+                "nullable": true
+              },
+              "topics": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "homepage": {
+                "type": "string",
+                "nullable": true
+              },
+              "license": {
+                "type": "string",
+                "nullable": true
+              },
+              "humanSummary": {
+                "type": "string",
+                "nullable": true
+              },
+              "agentDossier": {
+                "nullable": true
+              },
+              "tags": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "lastFetchedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "fullName",
+              "url",
+              "name",
+              "owner",
+              "description",
+              "stars",
+              "language",
+              "topics",
+              "homepage",
+              "license",
+              "humanSummary",
+              "tags",
+              "lastFetchedAt"
+            ]
           }
         },
         "required": [
@@ -441,6 +530,7 @@
           "favourited",
           "taggingStatus",
           "summarizationStatus",
+          "classificationStatus",
           "userId",
           "tags",
           "content",
@@ -1477,6 +1567,16 @@
                         null
                       ]
                     },
+                    "classificationStatus": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "success",
+                        "failure",
+                        "pending",
+                        null
+                      ]
+                    },
                     "note": {
                       "type": "string",
                       "nullable": true
@@ -1512,6 +1612,7 @@
                     "favourited",
                     "taggingStatus",
                     "summarizationStatus",
+                    "classificationStatus",
                     "userId"
                   ]
                 }
@@ -1610,6 +1711,16 @@
                         null
                       ]
                     },
+                    "classificationStatus": {
+                      "type": "string",
+                      "nullable": true,
+                      "enum": [
+                        "success",
+                        "failure",
+                        "pending",
+                        null
+                      ]
+                    },
                     "note": {
                       "type": "string",
                       "nullable": true
@@ -1645,6 +1756,7 @@
                     "favourited",
                     "taggingStatus",
                     "summarizationStatus",
+                    "classificationStatus",
                     "userId"
                   ]
                 }

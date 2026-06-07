@@ -1,10 +1,11 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ZOpenAIRequest } from "@karakeep/shared-server";
 import type { InferenceClient } from "@karakeep/shared/inference";
 import { db } from "@karakeep/db";
 import {
+  bookmarkLinks,
   bookmarks,
   bookmarkLists,
   bookmarksInLists,
@@ -171,7 +172,7 @@ async function classifyGitHubProject(
   ghProject: { id: string; fullName: string; humanSummary: string | null },
   job: DequeuedJob<ZOpenAIRequest>,
   inferenceClient: InferenceClient,
-  _textContent: string,
+  textContent: string,
 ) {
   const jobId = job.id;
 
@@ -182,28 +183,27 @@ async function classifyGitHubProject(
     return;
   }
 
-  const lang = serverConfig.inference.inferredTagLang;
+  const systemPrompt = `你把 GitHub 项目当做一个创业项目来评估。
 
-  const systemPrompt = `You are an expert developer analyzing a GitHub project. Return structured information.
+分析项目，返回 JSON：
 
-Analyze the GitHub project metadata and return a JSON object with:
 {
-  "summary": "A one-sentence description of what this project does (in ${lang}). Max 150 characters.",
-  "tags": ["tag1", "tag2", "tag3"],
+  "summary": "一句话说清这个项目解决什么问题（65字以内，含标点）",
+  "tags": ["中文标签", "如：安全/前端/AI/工具/数据库等"],
   "targetFolder": null,
   "agentDossier": {
-    "purpose": "What problem this project solves",
-    "techStack": ["list", "of", "key", "technologies"],
-    "architecture": "Brief architecture description",
-    "keyFeatures": ["feature1", "feature2"],
-    "useCases": ["use", "case", "descriptions"]
+    "purpose": "What it does (English, one line)",
+    "techStack": ["key technologies"],
+    "architecture": "Brief architecture",
+    "keyFeatures": ["main features"],
+    "useCases": ["use cases"]
   }
 }
 
-Rules:
-- Summary: Must be in ${lang}, concise, straight to the point.
-- Tags: 3-5 tags in English lowercase. Use hyphens for multi-word tags. Reflect language, purpose, domain.
-- agentDossier: Populate with your technical analysis. Be specific and accurate.`;
+规则：
+- summary：中文，65字以内，像投资人看项目一样一句说清"这项目解决什么问题"
+- tags：中文，2-3个领域标签
+- agentDossier：英文技术信息，给 Agent CLI 用`;
 
   const githubMeta = await db.query.githubProjects.findFirst({
     where: eq(githubProjects.id, ghProject.id),
@@ -229,6 +229,14 @@ License: ${githubMeta.license ?? "unknown"}`
     : ghProject.fullName
 }
 </GITHUB_PROJECT>
+
+<README_CONTENT>
+${textContent.slice(0, 6000)}
+</README_CONTENT>
+
+特别注意：
+- summary 必须 65 字以内，像投资人看项目一样一句话说清"解决了什么"
+- 不是翻译 README，是提炼核心价值
 
 Return ONLY valid JSON.`;
 
@@ -295,6 +303,16 @@ Return ONLY valid JSON.`;
     await connectTags(bookmarkId, cleanedTags, userId);
   }
 
+  const owner = ghProject.fullName.split("/")[0];
+  if (owner) {
+    await db
+      .update(bookmarkLinks)
+      .set({ imageUrl: `https://github.com/${owner}.png` })
+      .where(
+        and(eq(bookmarkLinks.id, bookmarkId), isNull(bookmarkLinks.imageUrl)),
+      );
+  }
+
   const enqueueOpts: EnqueueOptions = {
     priority: job.priority,
     groupId: userId,
@@ -311,6 +329,39 @@ Return ONLY valid JSON.`;
   }
 
   await triggerSearchReindex(bookmarkId, enqueueOpts);
+
+  const ghFolders = await db.query.bookmarkLists.findMany({
+    where: and(
+      eq(bookmarkLists.userId, userId),
+      eq(bookmarkLists.type, "manual"),
+      eq(bookmarkLists.name, "GitHub"),
+    ),
+    columns: { id: true },
+  });
+
+  for (const folder of ghFolders) {
+    await db
+      .insert(bookmarksInLists)
+      .values({
+        listId: folder.id,
+        bookmarkId,
+      })
+      .onConflictDoNothing();
+
+    await RuleEngine.triggerOnEvent(
+      userId,
+      bookmarkId,
+      [{ type: "addedToList", listId: folder.id }],
+      undefined,
+      db,
+    );
+  }
+
+  if (ghFolders.length > 0) {
+    logger.info(
+      `[inference][${jobId}] Added GitHub project bookmark "${bookmarkId}" to folder "GitHub 项目"`,
+    );
+  }
 }
 
 export async function runClassify(

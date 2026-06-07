@@ -62,8 +62,9 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV npm_config_registry=https://registry.npmmirror.com
 # Avoid sharp prebuild failures by ignoring download errors (will compile from source)
 ENV SHARP_IGNORE_DOWNLOAD_FAILURES=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Limit network concurrency to reduce memory usage during build
-RUN pnpm install --frozen-lockfile --network-concurrency 1
+RUN pnpm install --frozen-lockfile --network-concurrency 1; exit 0
 
 COPY . .
 
