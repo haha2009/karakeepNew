@@ -181,7 +181,6 @@ function GitHubImage({
               </span>
               <span className="text-white/40">·</span>
               <span>
-                更新{" "}
                 {gh.pushedAt
                   ? formatDistanceToNow(gh.pushedAt, {
                       locale: zhCN,
