@@ -3,11 +3,13 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Sparkles, Sparkle } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useUserSettings } from "@/lib/userSettings";
+import { useTRPC } from "@karakeep/shared-react/trpc";
 
 import type { ZBookmarkTypeLink } from "@karakeep/shared/types/bookmarks";
 import {
@@ -140,72 +142,108 @@ function GitHubImage({
 
   return (
     <Link
-        href={onClickUrl}
-        target={urlTarget}
-        rel="noreferrer"
-        className={className}
-      >
-        <div className="relative size-full">
-          {useOg ? (
-            <Image
-              unoptimized
-              src={ogUrl!}
-              alt=""
-              fill
-              className="object-cover"
-              onError={() => setOgError(true)}
-            />
-          ) : useAvatar ? (
-            <Image
-              unoptimized
-              src={avatarUrl}
-              alt=""
-              fill
-              className="object-cover"
-              onError={() => setAvatarError(true)}
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center bg-gray-800 p-4">
-              <span className="select-none text-center text-lg font-bold text-gray-400">
-                {gh.name ?? gh.fullName}
-              </span>
-            </div>
-          )}
-          <div className="pointer-events-none absolute bottom-2 right-2">
-            <div className="flex items-center gap-2 rounded-md bg-gray-900/30 px-2.5 py-1 text-xs text-white backdrop-blur-md">
-              <span className="inline-flex items-center gap-1 font-medium">
-                <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.192L.82 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" />
-                </svg>
-                {formatStars(gh.stars)}
-              </span>
-              <span className="text-white/40">·</span>
-              <span>
-                {gh.pushedAt
-                  ? formatDistanceToNow(gh.pushedAt, {
-                      locale: zhCN,
-                      addSuffix: true,
-                    })
-                  : "未知"}
-              </span>
-            </div>
+      href={onClickUrl}
+      target={urlTarget}
+      rel="noreferrer"
+      className={className}
+    >
+      <div className="relative size-full">
+        {useOg ? (
+          <Image
+            unoptimized
+            src={ogUrl!}
+            alt=""
+            fill
+            className="object-cover"
+            onError={() => setOgError(true)}
+          />
+        ) : useAvatar ? (
+          <Image
+            unoptimized
+            src={avatarUrl}
+            alt=""
+            fill
+            className="object-cover"
+            onError={() => setAvatarError(true)}
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-gray-800 p-4">
+            <span className="select-none text-center text-lg font-bold text-gray-400">
+              {gh.name ?? gh.fullName}
+            </span>
+          </div>
+        )}
+        <div className="pointer-events-none absolute bottom-2 right-2">
+          <div className="flex items-center gap-2 rounded-md bg-gray-900/30 px-2.5 py-1 text-[10px] text-white backdrop-blur-md">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.192L.82 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" />
+              </svg>
+              {formatStars(gh.stars)}
+            </span>
+            <span className="text-white/40">·</span>
+            <span>
+              {gh.pushedAt
+                ? formatDistanceToNow(gh.pushedAt, {
+                    locale: zhCN,
+                    addSuffix: true,
+                  })
+                : "未知"}
+            </span>
           </div>
         </div>
-      </Link>
+      </div>
+    </Link>
   );
 }
 
 function GitHubContent({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
+  const api = useTRPC();
+  const queryClient = useQueryClient();
+  const queueDepth = useQuery(
+    api.github.queueDepth.queryOptions({ bookmarkId: bookmark.id }),
+  );
+  const triggerMutation = useMutation(
+    api.github.triggerDeepDive.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(api.bookmarks.getBookmarks.pathFilter());
+        queryClient.invalidateQueries(api.github.queueDepth.pathFilter());
+      },
+    }),
+  );
   const gh = bookmark.githubProject;
   if (!gh) return null;
   const tags = gh.tags?.filter(Boolean) ?? [];
   const summary = gh.humanSummary ?? gh.description;
+  const { total = 0, position = 0 } = queueDepth.data ?? {};
   return (
     <div className="flex flex-col gap-2">
-      {summary && (
-        <p className="line-clamp-2 text-sm leading-snug text-gray-500">
+      {gh.aiStatus === "completed" && summary && (
+        <p className="text-sm leading-snug text-gray-500">
+          <Sparkles className="mr-1 inline size-3.5 shrink-0 text-gray-400" />
           {summary}
         </p>
+      )}
+      {gh.aiStatus !== "completed" && (
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => triggerMutation.mutate({ bookmarkId: bookmark.id })}
+            disabled={triggerMutation.isPending}
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-500 transition-colors enabled:hover:text-blue-700 disabled:opacity-60"
+          >
+            <Sparkle className="size-3.5" />
+            {gh.aiStatus === "pending"
+              ? triggerMutation.isPending
+                ? "AI 分析中..."
+                : `AI 分析中 (${position}/${total})`
+              : triggerMutation.isPending
+                ? "正在加入..."
+                : `AI 识别${total > 0 ? ` (${position}/${total})` : ""}`}
+          </button>
+          {summary && (
+            <p className="text-sm leading-snug text-gray-400">{summary}</p>
+          )}
+        </div>
       )}
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -243,12 +281,25 @@ export default function LinkCard({
         wrapTags={false}
         image={(layout, className) => (
           <GitHubImage
-            className={cn(className, layout !== "list" && "border-b border-gray-200")}
+            className={cn(
+              className,
+              layout !== "list" && "border-b border-gray-200",
+            )}
             bookmark={bookmarkLink}
           />
         )}
         className={className}
         bookmarkIndex={bookmarkIndex}
+        hideCreatedAt
+        footer={
+          <span className="text-[10px] leading-none text-gray-500">
+            采集{" "}
+            {formatDistanceToNowStrict(bookmarkLink.createdAt, {
+              locale: zhCN,
+              addSuffix: true,
+            })}
+          </span>
+        }
       />
     );
   }

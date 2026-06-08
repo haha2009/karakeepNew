@@ -78,9 +78,10 @@ export async function fetchGitHubRepoMetadata(
 const OG_IMAGE_RE = /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/i;
 const README_IMG_RE = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
 
-const SCREENSHOT_KEYWORDS = /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
+const SCREENSHOT_KEYWORDS =
+  /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
 
-function resolveGitHubUrl(path: string, owner: string, name: string): string {
+function resolveGitHubUrl(path: string, _owner: string, _name: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `https://github.com${path.startsWith("/") ? "" : "/"}${path}`;
 }
@@ -99,17 +100,29 @@ function isBadge(url: string): boolean {
           const hexStr = parts[2].replace(/[^0-9a-fA-F]/g, "");
           const decoded = Buffer.from(hexStr, "hex").toString("utf8");
           return isBadge(decoded);
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
       return true;
     }
 
     if (
-      ["img.shields.io", "badge.fury.io", "travis-ci.org", "circleci.com",
-        "codecov.io", "coveralls.io", "goreportcard.com", "gitter.im",
-        "discordapp.com"].some((d) => hostname.endsWith(d))
-    ) return true;
-    if (pathname.includes("/badge.svg") || pathname.includes("/badges/")) return true;
+      [
+        "img.shields.io",
+        "badge.fury.io",
+        "travis-ci.org",
+        "circleci.com",
+        "codecov.io",
+        "coveralls.io",
+        "goreportcard.com",
+        "gitter.im",
+        "discordapp.com",
+      ].some((d) => hostname.endsWith(d))
+    )
+      return true;
+    if (pathname.includes("/badge.svg") || pathname.includes("/badges/"))
+      return true;
     return false;
   } catch {
     return false;
@@ -119,10 +132,12 @@ function isBadge(url: string): boolean {
 function isGitHubHosted(url: string): boolean {
   try {
     const hostname = new URL(url).hostname;
-    return hostname === "github.com" ||
+    return (
+      hostname === "github.com" ||
       hostname.endsWith(".github.com") ||
       hostname.endsWith("githubusercontent.com") ||
-      hostname === "camo.githubusercontent.com";
+      hostname === "camo.githubusercontent.com"
+    );
   } catch {
     return false;
   }
@@ -171,7 +186,42 @@ export async function fetchGitHubOGImage(
   }
 }
 
-export async function generateGitHubHumanSummary(meta: GitHubRepoMetadata): Promise<string | null> {
+export async function fetchGitHubReadme(
+  owner: string,
+  name: string,
+): Promise<string | null> {
+  const token = process.env.GITHUB_TOKEN;
+  const headers: Record<string, string> = { "User-Agent": "karakeep" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  for (const branch of ["main", "master"]) {
+    try {
+      const res = await fetch(
+        `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/${branch}/README.md`,
+        { headers },
+      );
+      if (res.ok) return await res.text();
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
+      { headers: { ...headers, Accept: "application/vnd.github.v3.raw" } },
+    );
+    if (res.ok) return await res.text();
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+export async function generateGitHubHumanSummary(
+  meta: GitHubRepoMetadata,
+): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   const baseUrl = process.env.OPENAI_BASE_URL;
   const model = process.env.INFERENCE_TEXT_MODEL || "gpt-4.1-mini";
@@ -184,8 +234,12 @@ export async function generateGitHubHumanSummary(meta: GitHubRepoMetadata): Prom
 编程语言：${meta.language ?? "未知"}
 标签：${meta.topics.join(", ") || "无"}
 
+标签是理解项目的关键线索，请先分析标签含义再下结论。常见的 Go 项目标签映射：
+- alist / aliyunpan / baidupan / clouddrive / nas → 网盘聚合管理
+- 其他标签按实际含义理解
+
 要求：
-- 一句话讲清楚这个项目是做什么的
+- 一句话讲清楚这个项目是做什么的，先自问：标签共同指向什么领域？
 - 不要机翻，要真正理解后用自己的话写
 - 让不懂技术的人也能看懂
 - 控制在 30-60 字`;

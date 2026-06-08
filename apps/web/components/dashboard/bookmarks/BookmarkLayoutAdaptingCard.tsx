@@ -55,19 +55,36 @@ interface Props {
   fitHeight?: boolean;
   wrapTags: boolean;
   bookmarkIndex?: number;
+  hideCreatedAt?: boolean;
 }
 
 function BottomRow({
   footer,
   bookmark,
+  hideCreatedAt,
 }: {
   footer?: ReactNode;
   bookmark: ZBookmark;
+  hideCreatedAt?: boolean;
 }) {
+  if (hideCreatedAt) {
+    return (
+      <div className="flex w-full shrink-0 flex-col items-end gap-0.5 text-gray-500">
+        <BookmarkActionBar bookmark={bookmark} />
+        {footer}
+      </div>
+    );
+  }
+
   return (
     <div className="justify flex w-full shrink-0 justify-between text-gray-500">
       <div className="flex items-center gap-2 overflow-hidden text-nowrap font-light">
-        {footer && <>{footer}•</>}
+        {footer && (
+          <>
+            {footer}
+            <span className="text-gray-400">•</span>
+          </>
+        )}
         <Link
           href={`/dashboard/preview/${bookmark.id}`}
           suppressHydrationWarning
@@ -314,6 +331,7 @@ function ListView({
   footer,
   className,
   bookmarkIndex,
+  hideCreatedAt,
 }: Props) {
   const { showNotes, showTags, showTitle, imageFit } =
     useBookmarkDisplaySettings();
@@ -364,7 +382,11 @@ function ListView({
             </div>
           )}
         </div>
-        <BottomRow footer={footer} bookmark={bookmark} />
+        <BottomRow
+          footer={footer}
+          bookmark={bookmark}
+          hideCreatedAt={hideCreatedAt}
+        />
       </div>
     </div>
   );
@@ -379,7 +401,8 @@ function GridView({
   className,
   wrapTags,
   layout,
-  fitHeight = false,
+  _fitHeight = false,
+  hideCreatedAt,
   bookmarkIndex,
 }: Props & { layout: BookmarksLayoutTypes }) {
   const { showNotes, showTags, showTitle, imageFit } =
@@ -399,7 +422,7 @@ function GridView({
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-lg",
         className,
-        fitHeight && layout != "grid" ? "max-h-96" : "h-96",
+        layout === "grid" ? "h-[500px]" : "",
       )}
       data-bookmark-index={bookmarkIndex}
     >
@@ -408,14 +431,14 @@ function GridView({
       <DragHandle bookmark={bookmark} className="left-2 top-2" />
       <HoverActionBar bookmark={bookmark} />
       {img && <div className="h-56 w-full shrink-0 overflow-hidden">{img}</div>}
-      <div className="flex h-full flex-col justify-between gap-2 overflow-hidden p-2">
-        <div className="grow-1 flex flex-col gap-2 overflow-hidden">
+      <div className="flex h-full flex-col justify-between gap-2 p-2">
+        <div className="grow-1 flex flex-col gap-2">
           {showTitle && title && (
             <div className="line-clamp-2 flex-none shrink-0 overflow-hidden text-ellipsis break-words text-lg">
               {title}
             </div>
           )}
-          {content && <div className="shrink-1 overflow-hidden">{content}</div>}
+          {content && <div className="shrink-1">{content}</div>}
           {bookmark.summary && (
             <p className="line-clamp-2 shrink-0 text-sm text-muted-foreground">
               {bookmark.summary}
@@ -432,7 +455,11 @@ function GridView({
             </div>
           )}
         </div>
-        <BottomRow footer={footer} bookmark={bookmark} />
+        <BottomRow
+          footer={footer}
+          bookmark={bookmark}
+          hideCreatedAt={hideCreatedAt}
+        />
       </div>
     </div>
   );
@@ -444,6 +471,7 @@ function CompactView({
   footer,
   className,
   bookmarkIndex,
+  hideCreatedAt,
 }: Props) {
   const { showTitle } = useBookmarkDisplaySettings();
   return (
@@ -490,7 +518,9 @@ function CompactView({
             suppressHydrationWarning
             className="shrink-0 gap-2 text-gray-500"
           >
-            <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
+            {!hideCreatedAt && (
+              <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
+            )}
           </Link>
         </div>
         <BookmarkActionBar bookmark={bookmark} />

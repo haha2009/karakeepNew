@@ -4,11 +4,11 @@ import { z } from "zod";
 import { bookmarkLinks } from "@karakeep/db/schema";
 import { githubProjects } from "@karakeep/db/schema";
 import {
-  fetchGitHubRepoMetadata,
-  fetchGitHubOGImage,
   extractGitHubRepo,
+  fetchGitHubOGImage,
+  fetchGitHubRepoMetadata,
+  GitHubDeepDiveQueue,
 } from "@karakeep/shared-server";
-import { InferenceClientFactory } from "@karakeep/shared/inference";
 import { zGitHubProjectSchema } from "@karakeep/shared/types/bookmarks";
 
 import { createScopedAuthedProcedure, router } from "../index";
@@ -44,6 +44,7 @@ function mapProject(p: typeof githubProjects.$inferSelect) {
     tags: p.tags,
     pushedAt: p.pushedAt,
     lastFetchedAt: p.lastFetchedAt,
+    aiStatus: p.aiStatus,
     createdAt: p.createdAt,
     modifiedAt: p.modifiedAt,
   };
@@ -190,41 +191,72 @@ export const githubAppRouter = router({
         })
         .where(eq(bookmarkLinks.id, input.bookmarkId));
 
-      InferenceClientFactory.build()
-        ?.inferFromText(
-          `你是一个技术翻译官。请用通俗易懂的中文（让不懂技术的人也能看懂）解释下面这个 GitHub 项目是做什么的。
-
-项目名称：${meta.name}
-官方描述：${meta.description ?? "无"}
-编程语言：${meta.language ?? "未知"}
-标签：${meta.topics.join(", ") || "无"}
-
-要求：
-- 一句话讲清楚这个项目是做什么的
-- 不要机翻，要真正理解后用自己的话写
-- 让不懂技术的人也能看懂
-- 控制在 30-60 字`,
-          { schema: null },
-        )
-        .then((result) => {
-          const summary = result.response?.trim();
-          if (!summary) return;
-          ctx.db
-            .update(githubProjects)
-            .set({ humanSummary: summary })
-            .where(eq(githubProjects.bookmarkId, input.bookmarkId))
-            .catch((e) =>
-              console.error("[github] Failed to save humanSummary:", e),
-            );
-        })
-        .catch((e) =>
-          console.error("[github] Failed to generate humanSummary:", e),
-        );
+      GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId }).catch((e) =>
+        console.error("[github] Failed to enqueue deep dive:", e),
+      );
 
       const project = await ctx.db.query.githubProjects.findFirst({
         where: eq(githubProjects.bookmarkId, input.bookmarkId),
       });
       return project ? mapProject(project) : null;
+    }),
+
+  triggerDeepDive: githubProcedure
+    .input(z.object({ bookmarkId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.githubProjects.findFirst({
+        where: eq(githubProjects.bookmarkId, input.bookmarkId),
+        columns: { aiStatus: true },
+      });
+      if (
+        existing?.aiStatus === "pending" ||
+        existing?.aiStatus === "completed"
+      )
+        return;
+
+      await ctx.db
+        .update(githubProjects)
+        .set({ aiStatus: "none", humanSummary: null, agentDossier: null })
+        .where(eq(githubProjects.bookmarkId, input.bookmarkId));
+
+      GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId }).catch((e) =>
+        console.error("[github] Failed to enqueue deep dive:", e),
+      );
+    }),
+
+  queueDepth: githubProcedure
+    .input(z.object({ bookmarkId: z.string() }).optional())
+    .query(async ({ ctx, input }) => {
+      const allProjects = await ctx.db
+        .select({
+          id: githubProjects.id,
+          bookmarkId: githubProjects.bookmarkId,
+          aiStatus: githubProjects.aiStatus,
+        })
+        .from(githubProjects)
+        .where(eq(githubProjects.userId, ctx.user.id))
+        .orderBy(githubProjects.createdAt);
+
+      const totalNonCompleted = allProjects.filter(
+        (p) => p.aiStatus !== "completed",
+      ).length;
+      const pendingCount = allProjects.filter(
+        (p) => p.aiStatus === "pending",
+      ).length;
+
+      let position = 0;
+      if (input?.bookmarkId) {
+        const idx = allProjects.findIndex(
+          (p) => p.bookmarkId === input.bookmarkId,
+        );
+        if (idx !== -1) {
+          position = allProjects
+            .slice(0, idx + 1)
+            .filter((p) => p.aiStatus !== "completed").length;
+        }
+      }
+
+      return { total: totalNonCompleted, pending: pendingCount, position };
     }),
 
   profile: githubProcedure
@@ -320,6 +352,7 @@ export const githubAppRouter = router({
           lastFetchedAt: true,
           bookmarkId: true,
           userId: true,
+          aiStatus: true,
           createdAt: true,
           modifiedAt: true,
         },
