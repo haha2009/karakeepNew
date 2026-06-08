@@ -83,17 +83,14 @@ function resolveGitHubUrl(path: string, owner: string, name: string): string {
   return `https://github.com${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
-function isBadgeOrIcon(url: string): boolean {
+function isBadge(url: string): boolean {
   try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-    const pathname = parsed.pathname;
+    const hostname = new URL(url).hostname;
     if (
       ["img.shields.io", "badge.fury.io", "travis-ci.org", "circleci.com",
         "codecov.io", "coveralls.io", "goreportcard.com", "gitter.im",
         "discordapp.com"].some((d) => hostname.endsWith(d))
     ) return true;
-    if (pathname.endsWith(".svg")) return true;
     return false;
   } catch {
     return false;
@@ -112,7 +109,7 @@ export async function fetchGitHubOGImage(
     if (!response.ok) return null;
     const html = await response.text();
 
-    // Try to find first non-badge, non-icon image inside README
+    // Try to find first non-badge image inside README
     const readmeMatch = html.match(
       /<article[^>]*markdown-body[^>]*>[\s\S]*?<\/article>/i,
     );
@@ -121,7 +118,7 @@ export async function fetchGitHubOGImage(
       const imgMatches = readmeHtml.matchAll(README_IMG_SRC_RE);
       for (const m of imgMatches) {
         const url = resolveGitHubUrl(m[1], owner, name);
-        if (!isBadgeOrIcon(url)) return url;
+        if (!isBadge(url)) return url;
       }
     }
 
