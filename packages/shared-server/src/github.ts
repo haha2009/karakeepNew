@@ -76,6 +76,29 @@ export async function fetchGitHubRepoMetadata(
 }
 
 const OG_IMAGE_RE = /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/i;
+const README_IMG_SRC_RE = /<img[^>]*src="([^"]+)"[^>]*\/?\s*>/gi;
+
+function resolveGitHubUrl(path: string, owner: string, name: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `https://github.com${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+function isBadgeOrIcon(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    const pathname = parsed.pathname;
+    if (
+      ["img.shields.io", "badge.fury.io", "travis-ci.org", "circleci.com",
+        "codecov.io", "coveralls.io", "goreportcard.com", "gitter.im",
+        "discordapp.com"].some((d) => hostname.endsWith(d))
+    ) return true;
+    if (pathname.endsWith(".svg")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 export async function fetchGitHubOGImage(
   owner: string,
@@ -88,8 +111,23 @@ export async function fetchGitHubOGImage(
     );
     if (!response.ok) return null;
     const html = await response.text();
-    const match = OG_IMAGE_RE.exec(html);
-    return match?.[1] ?? null;
+
+    // Try to find first non-badge, non-icon image inside README
+    const readmeMatch = html.match(
+      /<article[^>]*markdown-body[^>]*>[\s\S]*?<\/article>/i,
+    );
+    if (readmeMatch) {
+      const readmeHtml = readmeMatch[0];
+      const imgMatches = readmeHtml.matchAll(README_IMG_SRC_RE);
+      for (const m of imgMatches) {
+        const url = resolveGitHubUrl(m[1], owner, name);
+        if (!isBadgeOrIcon(url)) return url;
+      }
+    }
+
+    // Fall back to og:image
+    const ogMatch = OG_IMAGE_RE.exec(html);
+    return ogMatch?.[1] ?? null;
   } catch {
     return null;
   }

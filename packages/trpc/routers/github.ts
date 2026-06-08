@@ -5,6 +5,7 @@ import { bookmarkLinks } from "@karakeep/db/schema";
 import { githubProjects } from "@karakeep/db/schema";
 import {
   fetchGitHubRepoMetadata,
+  fetchGitHubOGImage,
   extractGitHubRepo,
 } from "@karakeep/shared-server";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
@@ -137,6 +138,10 @@ export const githubAppRouter = router({
       const meta = await fetchGitHubRepoMetadata(repo.owner, repo.name);
       if (!meta) return null;
 
+      const [ogImageUrl] = await Promise.all([
+        fetchGitHubOGImage(repo.owner, repo.name),
+      ]);
+
       const now = new Date();
 
       if (existing) {
@@ -181,6 +186,7 @@ export const githubAppRouter = router({
         .set({
           title: meta.description ?? meta.name,
           description: meta.description,
+          imageUrl: ogImageUrl,
         })
         .where(eq(bookmarkLinks.id, input.bookmarkId));
 
