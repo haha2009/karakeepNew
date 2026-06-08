@@ -145,14 +145,14 @@ function GitHubImage({
         rel="noreferrer"
         className={className}
       >
-        <div className="relative size-full bg-gray-800">
+        <div className="relative size-full">
           {useOg ? (
             <Image
               unoptimized
               src={ogUrl!}
               alt=""
               fill
-              className="object-contain"
+              className="object-cover"
               onError={() => setOgError(true)}
             />
           ) : useAvatar ? (
@@ -161,7 +161,7 @@ function GitHubImage({
               src={avatarUrl}
               alt=""
               fill
-              className="object-contain"
+              className="object-cover"
               onError={() => setAvatarError(true)}
             />
           ) : (
