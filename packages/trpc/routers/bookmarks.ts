@@ -495,6 +495,15 @@ export const bookmarksAppRouter = router({
                 crawledAt: new Date(),
               })
               .where(eq(bookmarkLinks.id, bookmark.id));
+
+            await ctx.db
+              .update(bookmarks)
+              .set({
+                taggingStatus: "success",
+                summarizationStatus: "success",
+                classificationStatus: "success",
+              })
+              .where(eq(bookmarks.id, bookmark.id));
           }
         } catch (e) {
           console.error(
