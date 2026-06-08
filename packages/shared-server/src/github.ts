@@ -76,7 +76,9 @@ export async function fetchGitHubRepoMetadata(
 }
 
 const OG_IMAGE_RE = /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/i;
-const README_IMG_SRC_RE = /<img[^>]*src="([^"]+)"[^>]*\/?\s*>/gi;
+const README_IMG_RE = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
+
+const SCREENSHOT_KEYWORDS = /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
 
 function resolveGitHubUrl(path: string, owner: string, name: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
@@ -85,13 +87,42 @@ function resolveGitHubUrl(path: string, owner: string, name: string): string {
 
 function isBadge(url: string): boolean {
   try {
-    const hostname = new URL(url).hostname;
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    let pathname = parsed.pathname;
+
+    // Decode camo proxy URLs to check the original
+    if (hostname === "camo.githubusercontent.com") {
+      const parts = pathname.split("/");
+      if (parts.length >= 3) {
+        try {
+          const hexStr = parts[2].replace(/[^0-9a-fA-F]/g, "");
+          const decoded = Buffer.from(hexStr, "hex").toString("utf8");
+          return isBadge(decoded);
+        } catch {}
+      }
+      return true;
+    }
+
     if (
       ["img.shields.io", "badge.fury.io", "travis-ci.org", "circleci.com",
         "codecov.io", "coveralls.io", "goreportcard.com", "gitter.im",
         "discordapp.com"].some((d) => hostname.endsWith(d))
     ) return true;
+    if (pathname.includes("/badge.svg") || pathname.includes("/badges/")) return true;
     return false;
+  } catch {
+    return false;
+  }
+}
+
+function isGitHubHosted(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname === "github.com" ||
+      hostname.endsWith(".github.com") ||
+      hostname.endsWith("githubusercontent.com") ||
+      hostname === "camo.githubusercontent.com";
   } catch {
     return false;
   }
@@ -109,17 +140,27 @@ export async function fetchGitHubOGImage(
     if (!response.ok) return null;
     const html = await response.text();
 
-    // Try to find first non-badge image inside README
+    // Scan README images with priority: screenshot > GitHub-hosted > first non-badge
     const readmeMatch = html.match(
       /<article[^>]*markdown-body[^>]*>[\s\S]*?<\/article>/i,
     );
     if (readmeMatch) {
       const readmeHtml = readmeMatch[0];
-      const imgMatches = readmeHtml.matchAll(README_IMG_SRC_RE);
-      for (const m of imgMatches) {
+      const imgs = [...readmeHtml.matchAll(README_IMG_RE)];
+      let githubFallback: string | null = null;
+      let anyFallback: string | null = null;
+      for (const m of imgs) {
         const url = resolveGitHubUrl(m[1], owner, name);
-        if (!isBadge(url)) return url;
+        const alt = m[2] || "";
+        if (isBadge(url)) continue;
+        if (SCREENSHOT_KEYWORDS.test(alt) || SCREENSHOT_KEYWORDS.test(url)) {
+          return url;
+        }
+        if (isGitHubHosted(url) && !githubFallback) githubFallback = url;
+        if (!anyFallback) anyFallback = url;
       }
+      if (githubFallback) return githubFallback;
+      if (anyFallback) return anyFallback;
     }
 
     // Fall back to og:image
