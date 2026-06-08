@@ -617,6 +617,20 @@
       "when": 1780737505057,
       "tag": "0087_github_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "6",
+      "when": 1781420400000,
+      "tag": "0088_github_projects_pushed_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "6",
+      "when": 1781506800000,
+      "tag": "0089_github_projects_ai_status",
+      "breakpoints": true
     }
   ]
 }

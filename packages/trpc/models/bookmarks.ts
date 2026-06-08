@@ -656,6 +656,7 @@ export class Bookmark extends BareBookmark {
                   tags: row.githubProjects.tags,
                   pushedAt: row.githubProjects.pushedAt,
                   lastFetchedAt: row.githubProjects.lastFetchedAt,
+                  aiStatus: row.githubProjects.aiStatus,
                 }
               : undefined,
           };

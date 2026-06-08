@@ -103,8 +103,22 @@ export const zGitHubProjectSchema = z.object({
   tags: z.array(z.string()).nullable(),
   pushedAt: z.date().nullable(),
   lastFetchedAt: z.date().nullable(),
+  aiStatus: z.string().default("none"),
 });
 export type ZGitHubProject = z.infer<typeof zGitHubProjectSchema>;
+
+export interface AgentDossier {
+  oneLiner: string;
+  overview: string;
+  category: string;
+  keyFeatures: string[];
+  techStack: string[];
+  useCases: string[];
+  alternatives: string[];
+  knowledgeTags: string[];
+  maturity: "active" | "stable" | "inactive";
+  confidence: "high" | "medium" | "low";
+}
 
 export const zBookmarkSourceSchema = z.enum([
   "api",

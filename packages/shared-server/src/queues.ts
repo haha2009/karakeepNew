@@ -293,3 +293,18 @@ export const BackupQueue = createDeferredQueue<ZBackupRequest>("backup_queue", {
   },
   keepFailedJobs: false,
 });
+
+// GitHub deep dive worker
+export const zGitHubDeepDiveSchema = z.object({
+  bookmarkId: z.string(),
+});
+export type ZGitHubDeepDiveRequest = z.input<typeof zGitHubDeepDiveSchema>;
+export const GitHubDeepDiveQueue = createDeferredQueue<ZGitHubDeepDiveRequest>(
+  "github_deep_dive_queue",
+  {
+    defaultJobArgs: {
+      numRetries: 3,
+    },
+    keepFailedJobs: false,
+  },
+);

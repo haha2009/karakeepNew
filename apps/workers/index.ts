@@ -7,6 +7,7 @@ import {
   AssetPreprocessingQueue,
   BackupQueue,
   FeedQueue,
+  GitHubDeepDiveQueue,
   initEventLogger,
   initTracing,
   LinkCrawlerQueue,
@@ -37,6 +38,7 @@ import { RuleEngineWorker } from "./workers/ruleEngineWorker";
 import { SearchIndexingWorker } from "./workers/searchWorker";
 import { VideoWorker } from "./workers/videoWorker";
 import { WebhookWorker } from "./workers/webhookWorker";
+import { GitHubDeepDiveWorker } from "./workers/githubDeepDiveWorker";
 
 const workerBuilders = {
   crawler: async () => {
@@ -82,6 +84,10 @@ const workerBuilders = {
   backup: async () => {
     await BackupQueue.ensureInit();
     return BackupWorker.build();
+  },
+  githubDeepDive: async () => {
+    await GitHubDeepDiveQueue.ensureInit();
+    return GitHubDeepDiveWorker.build();
   },
 } as const;
 

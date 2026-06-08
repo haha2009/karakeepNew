@@ -23,6 +23,7 @@ import logger from "@karakeep/shared/logger";
 
 import { DequeuedJob, EnqueueOptions } from "@karakeep/shared/queueing";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import type { AgentDossier } from "@karakeep/shared/types/bookmarks";
 import { RuleEngine } from "@karakeep/trpc/lib/ruleEngine";
 import { Bookmark } from "@karakeep/trpc/models/bookmarks";
 import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
@@ -276,7 +277,7 @@ Return ONLY valid JSON.`;
     .update(githubProjects)
     .set({
       humanSummary: parsed.summary,
-      agentDossier: parsed.agentDossier ?? null,
+      agentDossier: (parsed.agentDossier ?? null) as AgentDossier | null,
       tags: parsed.tags,
       modifiedAt: new Date(),
     })

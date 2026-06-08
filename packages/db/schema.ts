@@ -16,6 +16,7 @@ import {
 import type { ZApiKeyScope } from "@karakeep/shared/types/apiKeys";
 import { API_KEY_FULL_ACCESS_SCOPE } from "@karakeep/shared/types/apiKeys";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import type { AgentDossier } from "@karakeep/shared/types/bookmarks";
 
 function createdAtField() {
   return integer("createdAt", { mode: "timestamp" })
@@ -1275,10 +1276,9 @@ export const githubProjects = sqliteTable(
     topics: text("topics", { mode: "json" }).$type<string[]>(),
     homepage: text("homepage"),
     license: text("license"),
-    agentDossier: text("agentDossier", { mode: "json" }).$type<
-      Record<string, unknown>
-    >(),
+    agentDossier: text("agentDossier", { mode: "json" }).$type<AgentDossier>(),
     humanSummary: text("humanSummary"),
+    aiStatus: text("aiStatus").notNull().default("none"),
     tags: text("tags", { mode: "json" }).$type<string[]>(),
     pushedAt: integer("pushedAt", { mode: "timestamp" }),
     lastFetchedAt: integer("lastFetchedAt", { mode: "timestamp" }),
