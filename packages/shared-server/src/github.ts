@@ -94,3 +94,44 @@ export async function fetchGitHubOGImage(
     return null;
   }
 }
+
+export async function generateGitHubHumanSummary(meta: GitHubRepoMetadata): Promise<string | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const baseUrl = process.env.OPENAI_BASE_URL;
+  const model = process.env.INFERENCE_TEXT_MODEL || "gpt-4.1-mini";
+  if (!apiKey || !baseUrl) return null;
+
+  const prompt = `你是一个技术翻译官。请用通俗易懂的中文（让不懂技术的人也能看懂）解释下面这个 GitHub 项目是做什么的。
+
+项目名称：${meta.name}
+官方描述：${meta.description ?? "无"}
+编程语言：${meta.language ?? "未知"}
+标签：${meta.topics.join(", ") || "无"}
+
+要求：
+- 一句话讲清楚这个项目是做什么的
+- 不要机翻，要真正理解后用自己的话写
+- 让不懂技术的人也能看懂
+- 控制在 30-60 字`;
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.5,
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content?.trim() ?? null;
+  } catch {
+    return null;
+  }
+}

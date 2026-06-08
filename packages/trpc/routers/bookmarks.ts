@@ -24,6 +24,7 @@ import {
   extractGitHubRepo,
   fetchGitHubOGImage,
   fetchGitHubRepoMetadata,
+  generateGitHubHumanSummary,
   LinkCrawlerQueue,
   LowPriorityCrawlerQueue,
   addLogFields,
@@ -504,6 +505,22 @@ export const bookmarksAppRouter = router({
                 classificationStatus: "success",
               })
               .where(eq(bookmarks.id, bookmark.id));
+
+            generateGitHubHumanSummary(meta).then((summary) => {
+              if (!summary) return;
+              ctx.db
+                .update(githubProjects)
+                .set({ humanSummary: summary })
+                .where(
+                  and(
+                    eq(githubProjects.bookmarkId, bookmark.id),
+                    eq(githubProjects.userId, ctx.user.id),
+                  ),
+                )
+                .catch((e) =>
+                  console.error("[github] Failed to save humanSummary:", e),
+                );
+            });
           }
         } catch (e) {
           console.error(
