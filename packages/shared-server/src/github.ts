@@ -75,16 +75,10 @@ export async function fetchGitHubRepoMetadata(
   };
 }
 
-const OG_IMAGE_RE = /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/i;
 const README_IMG_RE = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
 
 const SCREENSHOT_KEYWORDS =
   /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
-
-function resolveGitHubUrl(path: string, _owner: string, _name: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `https://github.com${path.startsWith("/") ? "" : "/"}${path}`;
-}
 
 function isBadge(url: string): boolean {
   try {
@@ -143,44 +137,52 @@ function isGitHubHosted(url: string): boolean {
   }
 }
 
+const MD_IMG_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
+
+function resolveReadmeUrl(
+  url: string,
+  owner: string,
+  name: string,
+): string {
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const clean = url.startsWith("/") ? url.slice(1) : url;
+  return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/main/${clean}`;
+}
+
 export async function fetchGitHubOGImage(
   owner: string,
   name: string,
 ): Promise<string | null> {
   try {
-    const response = await fetch(
-      `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
-      { headers: { "User-Agent": "karakeep" } },
-    );
-    if (!response.ok) return null;
-    const html = await response.text();
+    const readme = await fetchGitHubReadme(owner, name);
+    if (!readme) return null;
 
-    // Scan README images with priority: screenshot > GitHub-hosted > first non-badge
-    const readmeMatch = html.match(
-      /<article[^>]*markdown-body[^>]*>[\s\S]*?<\/article>/i,
-    );
-    if (readmeMatch) {
-      const readmeHtml = readmeMatch[0];
-      const imgs = [...readmeHtml.matchAll(README_IMG_RE)];
-      let githubFallback: string | null = null;
-      let anyFallback: string | null = null;
-      for (const m of imgs) {
-        const url = resolveGitHubUrl(m[1], owner, name);
-        const alt = m[2] || "";
-        if (isBadge(url)) continue;
-        if (SCREENSHOT_KEYWORDS.test(alt) || SCREENSHOT_KEYWORDS.test(url)) {
-          return url;
-        }
-        if (isGitHubHosted(url) && !githubFallback) githubFallback = url;
-        if (!anyFallback) anyFallback = url;
-      }
-      if (githubFallback) return githubFallback;
-      if (anyFallback) return anyFallback;
+    const urls: { url: string; alt: string }[] = [];
+
+    // Extract from Markdown image syntax
+    for (const m of readme.matchAll(MD_IMG_RE)) {
+      urls.push({ url: resolveReadmeUrl(m[2].trim(), owner, name), alt: (m[1] || "").trim() });
     }
 
-    // Fall back to og:image
-    const ogMatch = OG_IMAGE_RE.exec(html);
-    return ogMatch?.[1] ?? null;
+    // Extract from HTML <img> tags in Markdown
+    for (const m of readme.matchAll(README_IMG_RE)) {
+      urls.push({ url: resolveReadmeUrl(m[1].trim(), owner, name), alt: (m[2] || "").trim() });
+    }
+
+    let githubFallback: string | null = null;
+    let anyFallback: string | null = null;
+    for (const { url, alt } of urls) {
+      if (isBadge(url)) continue;
+      if (SCREENSHOT_KEYWORDS.test(alt) || SCREENSHOT_KEYWORDS.test(url)) {
+        return url;
+      }
+      if (isGitHubHosted(url) && !githubFallback) githubFallback = url;
+      if (!anyFallback) anyFallback = url;
+    }
+    if (githubFallback) return githubFallback;
+    if (anyFallback) return anyFallback;
+
+    return null;
   } catch {
     return null;
   }
