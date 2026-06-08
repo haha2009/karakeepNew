@@ -129,12 +129,17 @@ function GitHubImage({
   const gh = bookmark.githubProject!;
   const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
   const link = bookmark.content;
-  const [ogUrl] = React.useState<string | null>(() => {
+  const ogUrl = React.useMemo(() => {
     const details = getBookmarkLinkImageUrl(link);
     return details ? details.url : null;
-  });
+  }, [link.imageUrl, link.imageAssetId, link.screenshotAssetId]);
   const [ogError, setOgError] = React.useState(false);
   const [avatarError, setAvatarError] = React.useState(false);
+
+  React.useEffect(() => {
+    setOgError(false);
+    setAvatarError(false);
+  }, [ogUrl]);
 
   const avatarUrl = `https://avatars.githubusercontent.com/${gh.owner}?s=400`;
   const useOg = ogUrl && !ogError;
