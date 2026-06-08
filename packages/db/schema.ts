@@ -1280,6 +1280,7 @@ export const githubProjects = sqliteTable(
     >(),
     humanSummary: text("humanSummary"),
     tags: text("tags", { mode: "json" }).$type<string[]>(),
+    pushedAt: integer("pushedAt", { mode: "timestamp" }),
     lastFetchedAt: integer("lastFetchedAt", { mode: "timestamp" }),
     createdAt: createdAtField(),
     modifiedAt: modifiedAtField(),

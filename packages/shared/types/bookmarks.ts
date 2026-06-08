@@ -101,6 +101,7 @@ export const zGitHubProjectSchema = z.object({
   humanSummary: z.string().nullable(),
   agentDossier: z.any().nullable(),
   tags: z.array(z.string()).nullable(),
+  pushedAt: z.date().nullable(),
   lastFetchedAt: z.date().nullable(),
 });
 export type ZGitHubProject = z.infer<typeof zGitHubProjectSchema>;

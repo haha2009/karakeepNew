@@ -52,7 +52,13 @@ export async function autoCreateGitHubBookmarks(
     if (!repo) continue;
 
     if (sourceUrl === repoUrl) {
-      logger.info(`[github] Skipping ${repo.fullName} — same as source`);
+      await attachGitHubProject(
+        userId,
+        sourceBookmarkId,
+        repo.owner,
+        repo.name,
+        repo.fullName,
+      );
       continue;
     }
 
@@ -114,6 +120,7 @@ export async function autoCreateGitHubBookmarks(
       topics: meta.topics,
       homepage: meta.homepage,
       license: meta.license,
+      pushedAt: meta.pushedAt ? new Date(meta.pushedAt) : null,
       lastFetchedAt: new Date(),
     });
 
@@ -146,4 +153,62 @@ export async function autoCreateGitHubBookmarks(
       `[github] Created bookmark ${bookmark.id} for ${repo.fullName} (${meta.stars}★)`,
     );
   }
+}
+
+async function attachGitHubProject(
+  userId: string,
+  bookmarkId: string,
+  owner: string,
+  name: string,
+  fullName: string,
+): Promise<void> {
+  const existing = await db.query.githubProjects.findFirst({
+    where: eq(githubProjects.bookmarkId, bookmarkId),
+    columns: { id: true },
+  });
+  if (existing) {
+    logger.info(`[github] Source ${fullName} already has a project entry`);
+    return;
+  }
+
+  logger.info(`[github] Attaching project ${fullName} to source bookmark`);
+  const meta = await fetchGitHubRepoMetadata(owner, name);
+  if (!meta) {
+    logger.warn(`[github] No API data for ${fullName}, skipping`);
+    return;
+  }
+
+  await db.insert(githubProjects).values({
+    userId,
+    bookmarkId,
+    fullName: meta.fullName,
+    url: meta.url,
+    name: meta.name,
+    owner: meta.owner,
+    description: meta.description,
+    stars: meta.stars,
+    language: meta.language,
+    topics: meta.topics,
+    homepage: meta.homepage,
+    license: meta.license,
+    pushedAt: meta.pushedAt ? new Date(meta.pushedAt) : null,
+    lastFetchedAt: new Date(),
+  });
+
+  await db
+    .update(bookmarkLinks)
+    .set({
+      title: meta.description ?? meta.name,
+      description: meta.description,
+    })
+    .where(eq(bookmarkLinks.id, bookmarkId));
+
+  await OpenAIQueue.enqueue(
+    { bookmarkId, type: "classify" },
+    { groupId: userId },
+  );
+
+  logger.info(
+    `[github] Attached ${fullName} (${meta.stars}★) to source bookmark ${bookmarkId}`,
+  );
 }

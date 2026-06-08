@@ -13,6 +13,7 @@ import {
   bookmarkTags,
   bookmarkTexts,
   customPrompts,
+  githubProjects,
   tagsOnBookmarks,
   userReadingProgress,
   users,
@@ -20,6 +21,9 @@ import {
 import {
   AssetPreprocessingQueue,
   buildCrawlIdempotencyKey,
+  extractGitHubRepo,
+  fetchGitHubOGImage,
+  fetchGitHubRepoMetadata,
   LinkCrawlerQueue,
   LowPriorityCrawlerQueue,
   addLogFields,
@@ -391,40 +395,46 @@ export const bookmarksAppRouter = router({
         groupId: ctx.user.id,
       };
 
-      switch (bookmark.content.type) {
-        case BookmarkTypes.LINK: {
-          // The crawling job triggers openai when it's done
-          // Use a separate queue for low priority crawling to avoid impacting main queue parallelism
-          const crawlerQueue = shouldUseLowPriority
-            ? LowPriorityCrawlerQueue
-            : LinkCrawlerQueue;
-          await crawlerQueue.enqueue(
-            {
-              bookmarkId: bookmark.id,
-            },
-            enqueueOpts,
-          );
-          break;
-        }
-        case BookmarkTypes.TEXT: {
-          await OpenAIQueue.enqueue(
-            {
-              bookmarkId: bookmark.id,
-              type: "classify",
-            },
-            enqueueOpts,
-          );
-          break;
-        }
-        case BookmarkTypes.ASSET: {
-          await AssetPreprocessingQueue.enqueue(
-            {
-              bookmarkId: bookmark.id,
-              fixMode: false,
-            },
-            enqueueOpts,
-          );
-          break;
+      const isGitHubRepo =
+        bookmark.content.type === BookmarkTypes.LINK &&
+        extractGitHubRepo(bookmark.content.url) !== null;
+
+      if (!isGitHubRepo) {
+        switch (bookmark.content.type) {
+          case BookmarkTypes.LINK: {
+            // The crawling job triggers openai when it's done
+            // Use a separate queue for low priority crawling to avoid impacting main queue parallelism
+            const crawlerQueue = shouldUseLowPriority
+              ? LowPriorityCrawlerQueue
+              : LinkCrawlerQueue;
+            await crawlerQueue.enqueue(
+              {
+                bookmarkId: bookmark.id,
+              },
+              enqueueOpts,
+            );
+            break;
+          }
+          case BookmarkTypes.TEXT: {
+            await OpenAIQueue.enqueue(
+              {
+                bookmarkId: bookmark.id,
+                type: "classify",
+              },
+              enqueueOpts,
+            );
+            break;
+          }
+          case BookmarkTypes.ASSET: {
+            await AssetPreprocessingQueue.enqueue(
+              {
+                bookmarkId: bookmark.id,
+                fixMode: false,
+              },
+              enqueueOpts,
+            );
+            break;
+          }
         }
       }
 
@@ -448,6 +458,52 @@ export const bookmarksAppRouter = router({
           enqueueOpts,
         ),
       ]);
+
+      if (isGitHubRepo && bookmark.content.type === BookmarkTypes.LINK) {
+        const repo = extractGitHubRepo(bookmark.content.url)!;
+        try {
+          const [meta, ogImageUrl] = await Promise.all([
+            fetchGitHubRepoMetadata(repo.owner, repo.name),
+            fetchGitHubOGImage(repo.owner, repo.name),
+          ]);
+
+          if (meta) {
+            await ctx.db.insert(githubProjects).values({
+              userId: ctx.user.id,
+              bookmarkId: bookmark.id,
+              fullName: meta.fullName,
+              url: meta.url,
+              name: meta.name,
+              owner: meta.owner,
+              description: meta.description,
+              stars: meta.stars,
+              language: meta.language,
+              topics: meta.topics,
+              homepage: meta.homepage,
+              license: meta.license,
+              pushedAt: meta.pushedAt ? new Date(meta.pushedAt) : null,
+              lastFetchedAt: new Date(),
+            });
+
+            await ctx.db
+              .update(bookmarkLinks)
+              .set({
+                title: meta.description ?? meta.name,
+                description: meta.description,
+                imageUrl: ogImageUrl ?? undefined,
+                crawlStatus: "success",
+                crawledAt: new Date(),
+              })
+              .where(eq(bookmarkLinks.id, bookmark.id));
+          }
+        } catch (e) {
+          console.error(
+            `[github] Failed to create project for ${repo.fullName}:`,
+            e,
+          );
+        }
+      }
+
       return bookmark;
     }),
 

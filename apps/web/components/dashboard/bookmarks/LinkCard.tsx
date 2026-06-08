@@ -3,6 +3,9 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { ExternalLink } from "lucide-react";
 import { useUserSettings } from "@/lib/userSettings";
 
 import type { ZBookmarkTypeLink } from "@karakeep/shared/types/bookmarks";
@@ -42,10 +45,16 @@ function LinkTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
 
 function GitHubTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
   const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
-  const gh = bookmark.githubProject;
+  const gh = bookmark.githubProject!;
   return (
-    <Link href={onClickUrl} target={urlTarget} rel="noreferrer">
-      {gh?.humanSummary ?? bookmark.content.title ?? bookmark.content.url}
+    <Link
+      href={onClickUrl}
+      target={urlTarget}
+      rel="noreferrer"
+      className="inline-flex items-center gap-1.5"
+    >
+      {gh.name}
+      <ExternalLink className="mt-0.5 size-4 shrink-0 text-gray-300 hover:text-gray-500" />
     </Link>
   );
 }
@@ -89,8 +98,6 @@ function LinkImage({
   } else if (imgUrl) {
     img = imgComponent(imgUrl, true);
   } else {
-    // No image found
-    // A dummy white pixel for when there's no image.
     img = imgComponent(
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=",
       true,
@@ -109,6 +116,101 @@ function LinkImage({
   );
 }
 
+function GitHubImage({
+  bookmark,
+  className,
+}: {
+  bookmark: ZBookmarkTypeLink;
+  className?: string;
+}) {
+  const gh = bookmark.githubProject!;
+  const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
+  const link = bookmark.content;
+  const [imgUrl] = React.useState<string | null>(() => {
+    const details = getBookmarkLinkImageUrl(link);
+    return details ? details.url : null;
+  });
+  const [imgError, setImgError] = React.useState(false);
+
+  const hasImage = imgUrl && !imgError;
+
+  return (
+    <Link
+      href={onClickUrl}
+      target={urlTarget}
+      rel="noreferrer"
+      className={className}
+    >
+      <div className="relative size-full">
+        {hasImage ? (
+          <Image
+            unoptimized
+            src={imgUrl!}
+            alt=""
+            fill
+            className="object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-gray-50">
+            <span className="select-none text-5xl font-bold text-gray-200">
+              {(gh.name ?? gh.fullName)?.[0]?.toUpperCase() ?? "?"}
+            </span>
+          </div>
+        )}
+        <div className="pointer-events-none absolute bottom-2 right-2">
+          <div className="flex items-center gap-2 rounded-md bg-gray-900/30 px-2.5 py-1 text-xs text-white backdrop-blur-md">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.192L.82 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" />
+              </svg>
+              {formatStars(gh.stars)}
+            </span>
+            <span className="text-white/40">·</span>
+            <span>
+              更新{" "}
+              {gh.pushedAt
+                ? formatDistanceToNow(gh.pushedAt, {
+                    locale: zhCN,
+                    addSuffix: true,
+                  })
+                : "未知"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function GitHubContent({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
+  const gh = bookmark.githubProject;
+  if (!gh) return null;
+  const tags = gh.tags?.filter(Boolean) ?? [];
+  const summary = gh.humanSummary ?? gh.description;
+  return (
+    <div className="flex flex-col gap-2">
+      {summary && (
+        <p className="line-clamp-2 text-sm leading-snug text-gray-500">
+          {summary}
+        </p>
+      )}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LinkCard({
   bookmark: bookmarkLink,
   className,
@@ -121,24 +223,14 @@ export default function LinkCard({
   const gh = bookmarkLink.githubProject;
 
   if (gh) {
-    const ghBookmark = { ...bookmarkLink, summary: null };
-
     return (
       <BookmarkLayoutAdaptingCard
         title={<GitHubTitle bookmark={bookmarkLink} />}
-        footer={<FooterLinkURL url={getSourceUrl(bookmarkLink)} />}
-        bookmark={ghBookmark}
+        content={<GitHubContent bookmark={bookmarkLink} />}
+        bookmark={bookmarkLink}
         wrapTags={false}
         image={(_layout, className) => (
-          <div className="relative size-full">
-            <LinkImage className={className} bookmark={bookmarkLink} />
-            <div className="pointer-events-none absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white backdrop-blur-sm">
-              <span>{gh.fullName.split("/")[1]}</span>
-              {typeof gh.stars === "number" && (
-                <span>⭐{formatStars(gh.stars)}</span>
-              )}
-            </div>
-          </div>
+          <GitHubImage className={className} bookmark={bookmarkLink} />
         )}
         className={className}
         bookmarkIndex={bookmarkIndex}

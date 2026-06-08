@@ -12,6 +12,7 @@ export interface GitHubRepoMetadata {
   topics: string[];
   homepage: string | null;
   license: string | null;
+  pushedAt: string | null;
 }
 
 export function extractGitHubRepo(
@@ -70,5 +71,26 @@ export async function fetchGitHubRepoMetadata(
     topics: data.topics ?? [],
     homepage: data.homepage,
     license: data.license?.spdx_id ?? null,
+    pushedAt: data.pushed_at ?? null,
   };
+}
+
+const OG_IMAGE_RE = /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/i;
+
+export async function fetchGitHubOGImage(
+  owner: string,
+  name: string,
+): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+      { headers: { "User-Agent": "karakeep" } },
+    );
+    if (!response.ok) return null;
+    const html = await response.text();
+    const match = OG_IMAGE_RE.exec(html);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }

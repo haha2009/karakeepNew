@@ -1,7 +1,12 @@
 import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { bookmarkLinks } from "@karakeep/db/schema";
 import { githubProjects } from "@karakeep/db/schema";
+import {
+  fetchGitHubRepoMetadata,
+  extractGitHubRepo,
+} from "@karakeep/shared-server";
 import { zGitHubProjectSchema } from "@karakeep/shared/types/bookmarks";
 
 import { createScopedAuthedProcedure, router } from "../index";
@@ -35,6 +40,7 @@ function mapProject(p: typeof githubProjects.$inferSelect) {
     humanSummary: p.humanSummary,
     agentDossier: p.agentDossier,
     tags: p.tags,
+    pushedAt: p.pushedAt,
     lastFetchedAt: p.lastFetchedAt,
     createdAt: p.createdAt,
     modifiedAt: p.modifiedAt,
@@ -106,6 +112,79 @@ export const githubAppRouter = router({
           eq(githubProjects.fullName, input.fullName),
           eq(githubProjects.userId, ctx.user.id),
         ),
+      });
+      return project ? mapProject(project) : null;
+    }),
+
+  refreshBookmark: githubProcedure
+    .input(z.object({ bookmarkId: z.string() }))
+    .output(zGitHubProjectFullSchema.nullable())
+    .mutation(async ({ ctx, input }) => {
+      const link = await ctx.db.query.bookmarkLinks.findFirst({
+        where: eq(bookmarkLinks.id, input.bookmarkId),
+        columns: { url: true },
+      });
+      if (!link) return null;
+
+      const repo = extractGitHubRepo(link.url);
+      if (!repo) return null;
+
+      const existing = await ctx.db.query.githubProjects.findFirst({
+        where: eq(githubProjects.bookmarkId, input.bookmarkId),
+      });
+
+      const meta = await fetchGitHubRepoMetadata(repo.owner, repo.name);
+      if (!meta) return null;
+
+      const now = new Date();
+
+      if (existing) {
+        await ctx.db
+          .update(githubProjects)
+          .set({
+            fullName: meta.fullName,
+            url: meta.url,
+            name: meta.name,
+            owner: meta.owner,
+            description: meta.description,
+            stars: meta.stars,
+            language: meta.language,
+            topics: meta.topics,
+            homepage: meta.homepage,
+            license: meta.license,
+            pushedAt: meta.pushedAt ? new Date(meta.pushedAt) : null,
+            lastFetchedAt: now,
+          })
+          .where(eq(githubProjects.id, existing.id));
+      } else {
+        await ctx.db.insert(githubProjects).values({
+          userId: ctx.user.id,
+          bookmarkId: input.bookmarkId,
+          fullName: meta.fullName,
+          url: meta.url,
+          name: meta.name,
+          owner: meta.owner,
+          description: meta.description,
+          stars: meta.stars,
+          language: meta.language,
+          topics: meta.topics,
+          homepage: meta.homepage,
+          license: meta.license,
+          pushedAt: meta.pushedAt ? new Date(meta.pushedAt) : null,
+          lastFetchedAt: now,
+        });
+      }
+
+      await ctx.db
+        .update(bookmarkLinks)
+        .set({
+          title: meta.description ?? meta.name,
+          description: meta.description,
+        })
+        .where(eq(bookmarkLinks.id, input.bookmarkId));
+
+      const project = await ctx.db.query.githubProjects.findFirst({
+        where: eq(githubProjects.bookmarkId, input.bookmarkId),
       });
       return project ? mapProject(project) : null;
     }),
@@ -199,6 +278,7 @@ export const githubAppRouter = router({
           homepage: true,
           license: true,
           agentDossier: true,
+          pushedAt: true,
           lastFetchedAt: true,
           bookmarkId: true,
           userId: true,
