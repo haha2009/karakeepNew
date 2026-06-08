@@ -24,7 +24,6 @@ import {
   extractGitHubRepo,
   fetchGitHubOGImage,
   fetchGitHubRepoMetadata,
-  generateGitHubHumanSummary,
   LinkCrawlerQueue,
   LowPriorityCrawlerQueue,
   addLogFields,
@@ -506,21 +505,41 @@ export const bookmarksAppRouter = router({
               })
               .where(eq(bookmarks.id, bookmark.id));
 
-            generateGitHubHumanSummary(meta).then((summary) => {
-              if (!summary) return;
-              ctx.db
-                .update(githubProjects)
-                .set({ humanSummary: summary })
-                .where(
-                  and(
-                    eq(githubProjects.bookmarkId, bookmark.id),
-                    eq(githubProjects.userId, ctx.user.id),
-                  ),
-                )
-                .catch((e) =>
-                  console.error("[github] Failed to save humanSummary:", e),
-                );
-            });
+            InferenceClientFactory.build()
+              ?.inferFromText(
+                `你是一个技术翻译官。请用通俗易懂的中文（让不懂技术的人也能看懂）解释下面这个 GitHub 项目是做什么的。
+
+项目名称：${meta.name}
+官方描述：${meta.description ?? "无"}
+编程语言：${meta.language ?? "未知"}
+标签：${meta.topics.join(", ") || "无"}
+
+要求：
+- 一句话讲清楚这个项目是做什么的
+- 不要机翻，要真正理解后用自己的话写
+- 让不懂技术的人也能看懂
+- 控制在 30-60 字`,
+                { schema: null },
+              )
+              .then((result) => {
+                const summary = result.response?.trim();
+                if (!summary) return;
+                ctx.db
+                  .update(githubProjects)
+                  .set({ humanSummary: summary })
+                  .where(
+                    and(
+                      eq(githubProjects.bookmarkId, bookmark.id),
+                      eq(githubProjects.userId, ctx.user.id),
+                    ),
+                  )
+                  .catch((e) =>
+                    console.error("[github] Failed to save humanSummary:", e),
+                  );
+              })
+              .catch((e) =>
+                console.error("[github] Failed to generate humanSummary:", e),
+              );
           }
         } catch (e) {
           console.error(
