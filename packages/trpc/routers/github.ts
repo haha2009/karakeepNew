@@ -7,6 +7,7 @@ import {
   fetchGitHubRepoMetadata,
   extractGitHubRepo,
 } from "@karakeep/shared-server";
+import { InferenceClientFactory } from "@karakeep/shared/inference";
 import { zGitHubProjectSchema } from "@karakeep/shared/types/bookmarks";
 
 import { createScopedAuthedProcedure, router } from "../index";
@@ -182,6 +183,37 @@ export const githubAppRouter = router({
           description: meta.description,
         })
         .where(eq(bookmarkLinks.id, input.bookmarkId));
+
+      InferenceClientFactory.build()
+        ?.inferFromText(
+          `你是一个技术翻译官。请用通俗易懂的中文（让不懂技术的人也能看懂）解释下面这个 GitHub 项目是做什么的。
+
+项目名称：${meta.name}
+官方描述：${meta.description ?? "无"}
+编程语言：${meta.language ?? "未知"}
+标签：${meta.topics.join(", ") || "无"}
+
+要求：
+- 一句话讲清楚这个项目是做什么的
+- 不要机翻，要真正理解后用自己的话写
+- 让不懂技术的人也能看懂
+- 控制在 30-60 字`,
+          { schema: null },
+        )
+        .then((result) => {
+          const summary = result.response?.trim();
+          if (!summary) return;
+          ctx.db
+            .update(githubProjects)
+            .set({ humanSummary: summary })
+            .where(eq(githubProjects.bookmarkId, input.bookmarkId))
+            .catch((e) =>
+              console.error("[github] Failed to save humanSummary:", e),
+            );
+        })
+        .catch((e) =>
+          console.error("[github] Failed to generate humanSummary:", e),
+        );
 
       const project = await ctx.db.query.githubProjects.findFirst({
         where: eq(githubProjects.bookmarkId, input.bookmarkId),
