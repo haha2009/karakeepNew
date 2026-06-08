@@ -127,13 +127,16 @@ function GitHubImage({
   const gh = bookmark.githubProject!;
   const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
   const link = bookmark.content;
-  const [imgUrl] = React.useState<string | null>(() => {
+  const [ogUrl] = React.useState<string | null>(() => {
     const details = getBookmarkLinkImageUrl(link);
     return details ? details.url : null;
   });
-  const [imgError, setImgError] = React.useState(false);
+  const [ogError, setOgError] = React.useState(false);
+  const [avatarError, setAvatarError] = React.useState(false);
 
-  const hasImage = imgUrl && !imgError;
+  const avatarUrl = `https://avatars.githubusercontent.com/${gh.owner}?s=400`;
+  const useOg = ogUrl && !ogError;
+  const useAvatar = !useOg && !avatarError;
 
   return (
     <Link
@@ -143,19 +146,28 @@ function GitHubImage({
         className={className}
       >
         <div className="relative size-full">
-          {hasImage ? (
+          {useOg ? (
             <Image
               unoptimized
-              src={imgUrl!}
+              src={ogUrl!}
               alt=""
               fill
               className="object-cover"
-              onError={() => setImgError(true)}
+              onError={() => setOgError(true)}
+            />
+          ) : useAvatar ? (
+            <Image
+              unoptimized
+              src={avatarUrl}
+              alt=""
+              fill
+              className="object-cover"
+              onError={() => setAvatarError(true)}
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-gray-50">
-              <span className="select-none text-5xl font-bold text-gray-200">
-                {(gh.name ?? gh.fullName)?.[0]?.toUpperCase() ?? "?"}
+            <div className="flex size-full items-center justify-center bg-gray-800 p-4">
+              <span className="select-none text-center text-lg font-bold text-gray-400">
+                {gh.name ?? gh.fullName}
               </span>
             </div>
           )}
