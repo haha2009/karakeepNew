@@ -47,18 +47,12 @@ function LinkTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
 }
 
 function GitHubTitle({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
-  const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
   const gh = bookmark.githubProject!;
   return (
-    <Link
-      href={onClickUrl}
-      target={urlTarget}
-      rel="noreferrer"
-      className="inline-flex items-center gap-1.5"
-    >
+    <span className="inline-flex items-center gap-1.5">
       {gh.name}
-      <ExternalLink className="mt-0.5 size-4 shrink-0 text-gray-300 hover:text-gray-500" />
-    </Link>
+      <ExternalLink className="mt-0.5 size-4 shrink-0 text-gray-300" />
+    </span>
   );
 }
 
