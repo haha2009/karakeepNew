@@ -8,7 +8,8 @@ function resolveReadmeUrl(url: string, owner: string, name: string): string {
   return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/main/${clean}`;
 }
 
-const SCREENSHOT_KEYWORDS = /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
+const SCREENSHOT_KEYWORDS =
+  /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
 
 function isBadge(url: string): boolean {
   try {
@@ -16,24 +17,45 @@ function isBadge(url: string): boolean {
     const hostname = parsed.hostname;
     const pathname = parsed.pathname;
     if (
-      ["img.shields.io", "badge.fury.io", "travis-ci.org", "circleci.com",
-       "codecov.io", "coveralls.io", "goreportcard.com", "gitter.im",
-       "discordapp.com"].some((d) => hostname.endsWith(d))
-    ) return true;
-    if (pathname.includes("/badge.svg") || pathname.includes("/badges/")) return true;
+      [
+        "img.shields.io",
+        "badge.fury.io",
+        "travis-ci.org",
+        "circleci.com",
+        "codecov.io",
+        "coveralls.io",
+        "goreportcard.com",
+        "gitter.im",
+        "discordapp.com",
+      ].some((d) => hostname.endsWith(d))
+    )
+      return true;
+    if (pathname.includes("/badge.svg") || pathname.includes("/badges/"))
+      return true;
     return false;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function isGitHubHosted(url: string): boolean {
   try {
     const hostname = new URL(url).hostname;
-    return hostname === "github.com" || hostname.endsWith(".github.com") ||
-      hostname.endsWith("githubusercontent.com") || hostname === "camo.githubusercontent.com";
-  } catch { return false; }
+    return (
+      hostname === "github.com" ||
+      hostname.endsWith(".github.com") ||
+      hostname.endsWith("githubusercontent.com") ||
+      hostname === "camo.githubusercontent.com"
+    );
+  } catch {
+    return false;
+  }
 }
 
-async function fetchReadme(owner: string, name: string): Promise<string | null> {
+async function fetchReadme(
+  owner: string,
+  name: string,
+): Promise<string | null> {
   const headers: Record<string, string> = { "User-Agent": "karakeep" };
   headers.Authorization = `Bearer ${GITHUB_TOKEN}`;
   for (const branch of ["main", "master"]) {
@@ -43,12 +65,17 @@ async function fetchReadme(owner: string, name: string): Promise<string | null> 
         { headers },
       );
       if (res.ok) return await res.text();
-    } catch { }
+    } catch {
+      // ignore network errors, try next branch
+    }
   }
   return null;
 }
 
-async function fetchOGImage(owner: string, name: string): Promise<string | null> {
+async function fetchOGImage(
+  owner: string,
+  name: string,
+): Promise<string | null> {
   const readme = await fetchReadme(owner, name);
   if (!readme) return null;
 
@@ -56,19 +83,27 @@ async function fetchOGImage(owner: string, name: string): Promise<string | null>
 
   const MD_IMG_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
   for (const m of readme.matchAll(MD_IMG_RE)) {
-    urls.push({ url: resolveReadmeUrl(m[2].trim(), owner, name), alt: (m[1] || "").trim() });
+    urls.push({
+      url: resolveReadmeUrl(m[2].trim(), owner, name),
+      alt: (m[1] || "").trim(),
+    });
   }
 
-  const README_IMG_RE = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
+  const README_IMG_RE =
+    /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
   for (const m of readme.matchAll(README_IMG_RE)) {
-    urls.push({ url: resolveReadmeUrl(m[1].trim(), owner, name), alt: (m[2] || "").trim() });
+    urls.push({
+      url: resolveReadmeUrl(m[1].trim(), owner, name),
+      alt: (m[2] || "").trim(),
+    });
   }
 
   let githubFallback: string | null = null;
   let anyFallback: string | null = null;
   for (const { url, alt } of urls) {
     if (isBadge(url)) continue;
-    if (SCREENSHOT_KEYWORDS.test(alt) || SCREENSHOT_KEYWORDS.test(url)) return url;
+    if (SCREENSHOT_KEYWORDS.test(alt) || SCREENSHOT_KEYWORDS.test(url))
+      return url;
     if (isGitHubHosted(url) && !githubFallback) githubFallback = url;
     if (!anyFallback) anyFallback = url;
   }
@@ -85,7 +120,13 @@ const rows = db
      JOIN bookmarkLinks bl ON bl.id = gp.bookmarkId
      WHERE bl.imageUrl LIKE '%opengraph.githubassets%'`,
   )
-  .all() as { bookmarkId: string; owner: string; name: string; fullName: string; imageUrl: string }[];
+  .all() as {
+  bookmarkId: string;
+  owner: string;
+  name: string;
+  fullName: string;
+  imageUrl: string;
+}[];
 
 console.log(`Found ${rows.length} bookmarks with old OG images`);
 

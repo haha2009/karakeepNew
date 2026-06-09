@@ -106,7 +106,7 @@ function LinkImage({
       href={onClickUrl}
       target={urlTarget}
       rel="noreferrer"
-      className={className}
+      className={cn(className, "flex")}
     >
       <div className="relative size-full flex-1">{img}</div>
     </Link>
@@ -124,6 +124,7 @@ function GitHubImage({
   const { onClickUrl, urlTarget } = useOnClickUrl(bookmark);
   const link = bookmark.content;
   const ogUrl = React.useMemo(() => {
+    if (link.imageUrl) return link.imageUrl;
     const details = getBookmarkLinkImageUrl(link);
     return details ? details.url : null;
   }, [link.imageUrl, link.imageAssetId, link.screenshotAssetId]);
@@ -144,7 +145,7 @@ function GitHubImage({
       href={onClickUrl}
       target={urlTarget}
       rel="noreferrer"
-      className={className}
+      className={cn(className, "flex")}
     >
       <div className="relative size-full">
         {useOg ? (

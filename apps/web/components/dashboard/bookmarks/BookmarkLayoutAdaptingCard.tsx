@@ -401,7 +401,7 @@ function GridView({
   className,
   wrapTags,
   layout,
-  fitHeight = false,
+  fitHeight: _fitHeight = false,
   hideCreatedAt,
   bookmarkIndex,
 }: Props & { layout: BookmarksLayoutTypes }) {

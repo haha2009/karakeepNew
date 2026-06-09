@@ -75,7 +75,7 @@ export async function fetchGitHubRepoMetadata(
   };
 }
 
-const README_IMG_RE = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*\/?\s*>/gi;
+const README_IMG_RE = /<img[^>]*src=(["'])([^"']+)\1[^>]*\/?\s*>/gi;
 
 const SCREENSHOT_KEYWORDS =
   /screenshot|screenshots|demo|preview|showcase|展示|截图|预览/i;
@@ -139,11 +139,7 @@ function isGitHubHosted(url: string): boolean {
 
 const MD_IMG_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
-function resolveReadmeUrl(
-  url: string,
-  owner: string,
-  name: string,
-): string {
+function resolveReadmeUrl(url: string, owner: string, name: string): string {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   const clean = url.startsWith("/") ? url.slice(1) : url;
   return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/main/${clean}`;
@@ -161,12 +157,17 @@ export async function fetchGitHubOGImage(
 
     // Extract from Markdown image syntax
     for (const m of readme.matchAll(MD_IMG_RE)) {
-      urls.push({ url: resolveReadmeUrl(m[2].trim(), owner, name), alt: (m[1] || "").trim() });
+      urls.push({
+        url: resolveReadmeUrl(m[2].trim(), owner, name),
+        alt: (m[1] || "").trim(),
+      });
     }
 
-    // Extract from HTML <img> tags in Markdown
+    // Extract from HTML <img> tags (handles any attribute order, single/double quotes)
     for (const m of readme.matchAll(README_IMG_RE)) {
-      urls.push({ url: resolveReadmeUrl(m[1].trim(), owner, name), alt: (m[2] || "").trim() });
+      const src = resolveReadmeUrl(m[2].trim(), owner, name);
+      const altMatch = m[0].match(/alt=(["'])(.*?)\1/i);
+      urls.push({ url: src, alt: (altMatch ? altMatch[2] : "").trim() });
     }
 
     let githubFallback: string | null = null;

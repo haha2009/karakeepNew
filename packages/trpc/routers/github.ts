@@ -139,9 +139,7 @@ export const githubAppRouter = router({
       const meta = await fetchGitHubRepoMetadata(repo.owner, repo.name);
       if (!meta) return null;
 
-      const [ogImageUrl] = await Promise.all([
-        fetchGitHubOGImage(repo.owner, repo.name),
-      ]);
+      const ogImageUrl = await fetchGitHubOGImage(repo.owner, repo.name);
 
       const now = new Date();
 

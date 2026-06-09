@@ -491,7 +491,7 @@ export const bookmarksAppRouter = router({
               .set({
                 title: meta.description ?? meta.name,
                 description: meta.description,
-                imageUrl: ogImageUrl ?? undefined,
+                imageUrl: ogImageUrl,
                 crawlStatus: "success",
                 crawledAt: new Date(),
               })
