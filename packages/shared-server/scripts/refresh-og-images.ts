@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-const GITHUB_TOKEN = "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";
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? "";
 
 function resolveReadmeUrl(url: string, owner: string, name: string): string {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
