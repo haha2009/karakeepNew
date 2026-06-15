@@ -10,7 +10,14 @@ import { api } from "@/server/api/client";
 import { getServerAuthSession } from "@/server/auth";
 import { TRPCError } from "@trpc/server";
 import { TFunction } from "i18next";
-import { Archive, ClipboardList, Highlighter, Home, Tag, GitFork } from "lucide-react";
+import {
+  Archive,
+  ClipboardList,
+  Highlighter,
+  Home,
+  Tag,
+  GitFork,
+} from "lucide-react";
 import { tryCatch } from "@karakeep/shared/tryCatch";
 
 export default async function Dashboard({

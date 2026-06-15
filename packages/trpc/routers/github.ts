@@ -202,9 +202,7 @@ export const githubAppRouter = router({
       await runGitHubDeepDive({
         bookmarkId: input.bookmarkId,
         db: ctx.db,
-      }).catch((e) =>
-        console.error("[github] Deep dive failed:", e),
-      );
+      }).catch((e) => console.error("[github] Deep dive failed:", e));
 
       const project = await ctx.db.query.githubProjects.findFirst({
         where: eq(githubProjects.bookmarkId, input.bookmarkId),
@@ -232,10 +230,7 @@ export const githubAppRouter = router({
       });
 
       if (!result.success) {
-        console.error(
-          "[github] Deep dive failed:",
-          result.error,
-        );
+        console.error("[github] Deep dive failed:", result.error);
       }
     }),
 

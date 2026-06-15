@@ -11,10 +11,18 @@ import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/lib/auth/client";
 import { useReaderSettings } from "@/lib/readerSettings";
 import { useQuery } from "@tanstack/react-query";
-import { HighlighterIcon as Highlight, Printer, Sparkles, X } from "lucide-react";
+import {
+  HighlighterIcon as Highlight,
+  Printer,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
-import { BookmarkTypes, type AgentDossier } from "@karakeep/shared/types/bookmarks";
+import {
+  BookmarkTypes,
+  type AgentDossier,
+} from "@karakeep/shared/types/bookmarks";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { READER_FONT_FAMILIES } from "@karakeep/shared/types/readers";
@@ -162,7 +170,11 @@ function ReaderViewPageContent({ bookmarkId }: { bookmarkId: string }) {
                 </Suspense>
 
                 {bookmark.githubProject?.agentDossier && (
-                  <AgentDossierSection dossier={bookmark.githubProject.agentDossier as AgentDossier} />
+                  <AgentDossierSection
+                    dossier={
+                      bookmark.githubProject.agentDossier as AgentDossier
+                    }
+                  />
                 )}
               </>
             ) : (
@@ -233,10 +245,10 @@ function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
 
           {dossier.overview && (
             <div>
-              <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Overview
               </h4>
-              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
                 {dossier.overview}
               </p>
             </div>
@@ -245,12 +257,15 @@ function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
           <div className="grid gap-6 sm:grid-cols-2">
             {dossier.keyFeatures && dossier.keyFeatures.length > 0 && (
               <div>
-                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Key Features
                 </h4>
                 <ul className="space-y-1">
                   {dossier.keyFeatures.map((f, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                    >
                       <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
                       {f}
                     </li>
@@ -261,7 +276,7 @@ function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
 
             {dossier.techStack && dossier.techStack.length > 0 && (
               <div>
-                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Tech Stack
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -278,12 +293,15 @@ function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
           <div className="grid gap-6 sm:grid-cols-2">
             {dossier.useCases && dossier.useCases.length > 0 && (
               <div>
-                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Use Cases
                 </h4>
                 <ul className="space-y-1">
                   {dossier.useCases.map((u, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                    >
                       <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
                       {u}
                     </li>
@@ -294,7 +312,7 @@ function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
 
             {dossier.alternatives && dossier.alternatives.length > 0 && (
               <div>
-                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Alternatives
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
