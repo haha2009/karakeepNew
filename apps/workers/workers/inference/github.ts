@@ -41,6 +41,7 @@ async function saveRecommendation(
   sourceBookmarkId: string,
   sourceUrl: string,
   recommenderUsername: string | null,
+  recommendationContext?: string,
 ): Promise<void> {
   // Only save if source is X/Twitter
   if (!sourceUrl || !TWITTER_URL_RE.test(sourceUrl)) return;
@@ -59,6 +60,7 @@ async function saveRecommendation(
     bookmarkId: sourceBookmarkId,
     recommenderUsername,
     originalPostUrl: sourceUrl,
+    recommendationContext,
     recommendedAt: new Date(),
   });
 
@@ -110,6 +112,7 @@ export async function autoCreateGitHubBookmarks(
           sourceBookmarkId,
           sourceUrl!,
           twitterMatch[1],
+          textContent,
         );
       }
       continue;
@@ -211,6 +214,7 @@ export async function autoCreateGitHubBookmarks(
           sourceBookmarkId,
           sourceUrl!,
           twitterMatch[1],
+          textContent,
         );
       }
     }

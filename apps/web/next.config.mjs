@@ -19,7 +19,7 @@ const nextConfig = {
         loaders: ["@svgr/webpack"],
         as: "*.js",
       },
-   },
+    },
   },
   webpack: (config) => {
     config.module.rules.push({

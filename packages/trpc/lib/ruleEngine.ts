@@ -215,6 +215,12 @@ export class RuleEngine {
       case "isArchived": {
         return this.bookmark.archived;
       }
+      case "isGitHubProject": {
+        return (
+          this.bookmark.type === BookmarkTypes.LINK &&
+          (this.bookmark.link?.url ?? "").includes("github.com")
+        );
+      }
       case "and": {
         return condition.conditions.every((c) =>
           this.doesBookmarkMatchConditions(c),
@@ -331,6 +337,25 @@ export class RuleEngine {
           })
           .where(eq(bookmarks.id, this.bookmark.id));
         return `Marked as archived`;
+      }
+      case "autoTagByProjectType": {
+        const repoName = this.bookmark.link?.url
+          ?.replace(/^https?:\/\/(?:www\.)?github\.com\//, "")
+          ?.split("/")
+          ?.slice(0, 2)
+          ?.join("/");
+        if (repoName) {
+          await this.ctx.db
+            .insert(tagsOnBookmarks)
+            .values({
+              attachedBy: "human",
+              bookmarkId: this.bookmark.id,
+              tagId: action.tagId,
+            })
+            .onConflictDoNothing();
+          return `Auto-tagged GitHub project ${repoName}`;
+        }
+        return `Skipped: not a GitHub project`;
       }
       default: {
         const _exhaustiveCheck: never = action;

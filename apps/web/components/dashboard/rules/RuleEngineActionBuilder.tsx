@@ -68,6 +68,9 @@ export function ActionBuilder({ value, onChange }: ActionBuilderProps) {
       case "archiveBookmark":
         newActions[index] = { type: "archiveBookmark" };
         break;
+      case "autoTagByProjectType":
+        newActions[index] = { type: "autoTagByProjectType", tagId: "" };
+        break;
       default: {
         const _exhaustiveCheck: never = type;
         return null;
@@ -100,6 +103,8 @@ export function ActionBuilder({ value, onChange }: ActionBuilderProps) {
         return <Star className="h-4 w-4" />;
       case "archiveBookmark":
         return <Archive className="h-4 w-4" />;
+      case "autoTagByProjectType":
+        return <Tag className="h-4 w-4" />;
       default:
         return null;
     }
@@ -154,11 +159,15 @@ export function ActionBuilder({ value, onChange }: ActionBuilderProps) {
                       <SelectItem value="archiveBookmark">
                         {t("settings.rules.actions_types.archive_bookmark")}
                       </SelectItem>
+                      <SelectItem value="autoTagByProjectType">
+                        Auto-tag GitHub Project
+                      </SelectItem>
                     </SelectContent>
                   </Select>
 
                   {(action.type === "addTag" ||
-                    action.type === "removeTag") && (
+                    action.type === "removeTag" ||
+                    action.type === "autoTagByProjectType") && (
                     <TagAutocomplete
                       className="ml-2 h-8 flex-1"
                       tagId={action.tagId}

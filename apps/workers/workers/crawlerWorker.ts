@@ -2082,9 +2082,17 @@ async function crawlAndParseUrl(
 
       // If the crawled content is suspiciously small and the URL is from
       // X/Twitter, try fxtwitter as a fallback to get tweet content.
+      // We check both raw HTML length (bot-blocked page) and extracted
+      // readable content length (JS-rendered page that readability can't parse)
       let finalMeta = meta;
       let finalReadableContent = parsedReadableContent;
-      if (htmlContent.length < 500 && toFxtwitterUrl(url) !== null) {
+      const isReadableContentTooSmall =
+        !parsedReadableContent?.content ||
+        parsedReadableContent.content.length < 1000;
+      if (
+        (htmlContent.length < 500 || isReadableContentTooSmall) &&
+        toFxtwitterUrl(url) !== null
+      ) {
         const fallbackHtml = await fetchFxtwitterFallback(
           url,
           jobId,

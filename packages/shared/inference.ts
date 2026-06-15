@@ -140,16 +140,17 @@ export class OpenAIInferenceClient implements InferenceClient {
         ...(this.config.useMaxCompletionTokens
           ? { max_completion_tokens: this.config.maxOutputTokens }
           : { max_tokens: this.config.maxOutputTokens }),
-        response_format: mapInferenceOutputSchema(
-          {
-            structured: optsWithDefaults.schema
-              ? zodResponseFormat(optsWithDefaults.schema, "schema")
-              : undefined,
-            json: { type: "json_object" },
-            plain: undefined,
-          },
-          this.config.outputSchema,
-        ),
+        response_format: optsWithDefaults.schema
+          ? zodResponseFormat(optsWithDefaults.schema, "schema")
+          : mapInferenceOutputSchema(
+              {
+                json: { type: "json_object" },
+                plain: undefined,
+              },
+              this.config.outputSchema === "structured"
+                ? "json"
+                : this.config.outputSchema,
+            ),
         reasoning_effort: this.config.reasoningEffort,
       },
       {
@@ -183,16 +184,17 @@ export class OpenAIInferenceClient implements InferenceClient {
         ...(this.config.useMaxCompletionTokens
           ? { max_completion_tokens: this.config.maxOutputTokens }
           : { max_tokens: this.config.maxOutputTokens }),
-        response_format: mapInferenceOutputSchema(
-          {
-            structured: optsWithDefaults.schema
-              ? zodResponseFormat(optsWithDefaults.schema, "schema")
-              : undefined,
-            json: { type: "json_object" },
-            plain: undefined,
-          },
-          this.config.outputSchema,
-        ),
+        response_format: optsWithDefaults.schema
+          ? zodResponseFormat(optsWithDefaults.schema, "schema")
+          : mapInferenceOutputSchema(
+              {
+                json: { type: "json_object" },
+                plain: undefined,
+              },
+              this.config.outputSchema === "structured"
+                ? "json"
+                : this.config.outputSchema,
+            ),
         messages: [
           {
             role: "user",

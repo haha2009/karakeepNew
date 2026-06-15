@@ -120,6 +120,10 @@ const zIsArchivedCondition = z.object({
   type: z.literal("isArchived"),
 });
 
+const zIsGitHubProjectCondition = z.object({
+  type: z.literal("isGitHubProject"),
+});
+
 const nonRecursiveCondition = z.discriminatedUnion("type", [
   zAlwaysTrueCondition,
   zUrlContainsCondition,
@@ -132,6 +136,7 @@ const nonRecursiveCondition = z.discriminatedUnion("type", [
   zHasTagCondition,
   zIsFavouritedCondition,
   zIsArchivedCondition,
+  zIsGitHubProjectCondition,
 ]);
 
 type NonRecursiveCondition = z.infer<typeof nonRecursiveCondition>;
@@ -154,6 +159,7 @@ export const zRuleEngineConditionSchema: z.ZodType<RuleEngineCondition> =
       zHasTagCondition,
       zIsFavouritedCondition,
       zIsArchivedCondition,
+      zIsGitHubProjectCondition,
       z.object({
         type: z.literal("and"),
         conditions: z.array(zRuleEngineConditionSchema),
@@ -194,6 +200,11 @@ const zFavouriteBookmarkAction = z.object({
   type: z.literal("favouriteBookmark"),
 });
 
+const zAutoTagByProjectTypeAction = z.object({
+  type: z.literal("autoTagByProjectType"),
+  tagId: z.string(),
+});
+
 const zArchiveBookmarkAction = z.object({
   type: z.literal("archiveBookmark"),
 });
@@ -206,6 +217,7 @@ export const zRuleEngineActionSchema = z.discriminatedUnion("type", [
   zDownloadFullPageArchiveAction,
   zFavouriteBookmarkAction,
   zArchiveBookmarkAction,
+  zAutoTagByProjectTypeAction,
 ]);
 export type RuleEngineAction = z.infer<typeof zRuleEngineActionSchema>;
 
@@ -277,6 +289,7 @@ const ruleValidaitorFn = (
       case "bookmarkSourceIs":
       case "isFavourited":
       case "isArchived":
+      case "isGitHubProject":
         return true;
       case "urlContains":
       case "urlDoesNotContain":
@@ -367,6 +380,16 @@ const ruleValidaitorFn = (
       case "downloadFullPageArchive":
       case "favouriteBookmark":
       case "archiveBookmark":
+        return true;
+      case "autoTagByProjectType":
+        if (action.tagId.length == 0) {
+          ctx.addIssue({
+            code: "custom",
+            message: "You must specify a tag for this action type",
+            path: ["actions", "tagId"],
+          });
+          return false;
+        }
         return true;
       default: {
         const _exhaustiveCheck: never = action;

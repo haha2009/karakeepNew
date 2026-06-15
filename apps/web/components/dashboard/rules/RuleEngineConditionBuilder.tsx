@@ -88,6 +88,9 @@ export function ConditionBuilder({
       case "isArchived":
         onChange({ type: "isArchived" });
         break;
+      case "isGitHubProject":
+        onChange({ type: "isGitHubProject" });
+        break;
       case "and":
         onChange({ type: "and", conditions: [] });
         break;
@@ -124,6 +127,8 @@ export function ConditionBuilder({
         return <Star className="h-4 w-4" />;
       case "isArchived":
         return <Archive className="h-4 w-4" />;
+      case "isGitHubProject":
+        return <Link className="h-4 w-4" />;
       default:
         return null;
     }
@@ -257,6 +262,15 @@ export function ConditionBuilder({
           </div>
         );
 
+      case "isGitHubProject":
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-muted-foreground">
+              Matches bookmarks that link to a GitHub repository
+            </p>
+          </div>
+        );
+
       case "and":
       case "or":
         return (
@@ -359,6 +373,7 @@ export function ConditionBuilder({
         <SelectItem value="isArchived">
           {t("settings.rules.conditions_types.is_archived")}
         </SelectItem>
+        <SelectItem value="isGitHubProject">Is GitHub Project</SelectItem>
       </SelectContent>
     </Select>
   );
