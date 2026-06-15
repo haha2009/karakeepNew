@@ -1280,6 +1280,12 @@ export const githubProjects = sqliteTable(
     humanSummary: text("humanSummary"),
     aiStatus: text("aiStatus").notNull().default("none"),
     tags: text("tags", { mode: "json" }).$type<string[]>(),
+    agentTags: text("agentTags", { mode: "json" }).$type<string[]>(),
+    valueScore: text("valueScore", { enum: ["high", "mid", "low", "unscored"] })
+      .notNull()
+      .default("unscored"),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    archiveReason: text("archiveReason"),
     pushedAt: integer("pushedAt", { mode: "timestamp" }),
     lastFetchedAt: integer("lastFetchedAt", { mode: "timestamp" }),
     createdAt: createdAtField(),

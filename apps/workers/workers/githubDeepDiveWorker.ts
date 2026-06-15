@@ -126,11 +126,13 @@ async function runDeepDive(job: DequeuedJob<ZGitHubDeepDiveRequest>) {
 
   let humanSummary: string;
   let dossier: AgentDossier;
+  let valueScore: string = "unscored";
 
   try {
     const parsed = JSON.parse(result.response);
     humanSummary = parsed.humanSummary ?? "";
     dossier = parsed.dossier;
+    valueScore = parsed.valueScore ?? "unscored";
   } catch {
     throw new Error(
       `[githubDeepDive][${jobId}] Failed to parse LLM response as JSON: ${result.response.slice(0, 200)}`,
@@ -143,11 +145,26 @@ async function runDeepDive(job: DequeuedJob<ZGitHubDeepDiveRequest>) {
     );
   }
 
+  // Archive decision: low value AI score or rule-based fallback
+  let archived = false;
+  let archiveReason: string | null = null;
+  if (valueScore === "low") {
+    archived = true;
+    archiveReason = "AI 评分为低价值，自动归档";
+  } else if (valueScore === "unscored" && gh.stars !== null && gh.stars < 100) {
+    archived = true;
+    archiveReason = "star<100 且无 AI 评分，自动归档";
+  }
+
   await db
     .update(githubProjects)
     .set({
       humanSummary: humanSummary || undefined,
       agentDossier: dossier,
+      agentTags: dossier.knowledgeTags,
+      valueScore: valueScore as "high" | "mid" | "low" | "unscored",
+      archived,
+      archiveReason,
       aiStatus: "completed",
     })
     .where(eq(githubProjects.bookmarkId, bookmarkId));
@@ -192,6 +209,7 @@ ${meta.readmeContent}
 请返回以下 JSON（不要任何其他文字，严格 JSON 格式）：
 {
   "humanSummary": "30-60字中文通俗简介，让非技术用户也能看懂这个项目是做什么的，不要重复项目名称（卡片标题已经显示了）",
+  "valueScore": "high 或 mid 或 low（项目价值评分：high=首创/同类最佳/高增长，mid=有用但非突出，low=过时/简单/小众）",
   "dossier": {
     "oneLiner": "一句话精准概括项目定位（20字内）",
     "overview": "200-500字的完整项目介绍，面向 AI Agent 阅读，包含：项目目的、核心功能、架构特点、使用方式",
@@ -200,6 +218,8 @@ ${meta.readmeContent}
     "techStack": ["技术栈列表，如Go", "Vue.js", "PostgreSQL"],
     "useCases": ["适用场景列表"],
     "alternatives": ["替代品或竞品列表，项目名即可"],
+    "pros": ["主要优势列表"],
+    "cons": ["主要局限列表"],
     "knowledgeTags": ["5-10个用于搜索的标签"],
     "maturity": "active 或 stable 或 inactive",
     "confidence": "high 或 medium 或 low"

@@ -7,6 +7,7 @@ import {
   bookmarkLists,
   bookmarksInLists,
   githubProjects,
+  projectRecommendations,
 } from "@karakeep/db/schema";
 import { LinkCrawlerQueue, OpenAIQueue } from "@karakeep/shared-server";
 import {
@@ -17,6 +18,8 @@ import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import logger from "@karakeep/shared/logger";
 
 const GITHUB_URL_RE = /https?:\/\/(?:www\.)?github\.com\/[\w.-]+\/[\w.-]+/g;
+const TWITTER_URL_RE =
+  /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/([^/]+)\/status\/(\d+)/;
 
 function extractAllRepos(text: string): string[] {
   const matches = text.match(GITHUB_URL_RE);
@@ -31,6 +34,37 @@ function extractAllRepos(text: string): string[] {
     }
   }
   return unique;
+}
+
+async function saveRecommendation(
+  projectId: string,
+  sourceBookmarkId: string,
+  sourceUrl: string,
+  recommenderUsername: string | null,
+): Promise<void> {
+  // Only save if source is X/Twitter
+  if (!sourceUrl || !TWITTER_URL_RE.test(sourceUrl)) return;
+
+  const existing = await db.query.projectRecommendations.findFirst({
+    where: and(
+      eq(projectRecommendations.projectId, projectId),
+      eq(projectRecommendations.bookmarkId, sourceBookmarkId),
+    ),
+    columns: { id: true },
+  });
+  if (existing) return;
+
+  await db.insert(projectRecommendations).values({
+    projectId,
+    bookmarkId: sourceBookmarkId,
+    recommenderUsername,
+    originalPostUrl: sourceUrl,
+    recommendedAt: new Date(),
+  });
+
+  logger.info(
+    `[github] Saved recommendation for project ${projectId} from @${recommenderUsername ?? "unknown"}`,
+  );
 }
 
 export async function autoCreateGitHubBookmarks(
@@ -68,6 +102,16 @@ export async function autoCreateGitHubBookmarks(
     });
     if (existingProject) {
       logger.info(`[github] Skipping ${repo.fullName} — already tracked`);
+      // Record recommendation even for existing projects (new discovery source)
+      const twitterMatch = sourceUrl?.match(TWITTER_URL_RE);
+      if (twitterMatch) {
+        await saveRecommendation(
+          existingProject.id,
+          sourceBookmarkId,
+          sourceUrl!,
+          twitterMatch[1],
+        );
+      }
       continue;
     }
 
@@ -152,6 +196,24 @@ export async function autoCreateGitHubBookmarks(
     logger.info(
       `[github] Created bookmark ${bookmark.id} for ${repo.fullName} (${meta.stars}★)`,
     );
+
+    // Save recommendation if source is X/Twitter
+    const twitterMatch = sourceUrl?.match(TWITTER_URL_RE);
+    if (twitterMatch) {
+      // Query the project we just created to get its id
+      const newProject = await db.query.githubProjects.findFirst({
+        where: eq(githubProjects.fullName, meta.fullName),
+        columns: { id: true },
+      });
+      if (newProject) {
+        await saveRecommendation(
+          newProject.id,
+          sourceBookmarkId,
+          sourceUrl!,
+          twitterMatch[1],
+        );
+      }
+    }
   }
 }
 

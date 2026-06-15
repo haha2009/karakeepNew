@@ -101,6 +101,10 @@ export const zGitHubProjectSchema = z.object({
   humanSummary: z.string().nullable(),
   agentDossier: z.any().nullable(),
   tags: z.array(z.string()).nullable(),
+  agentTags: z.array(z.string()).nullable(),
+  valueScore: z.enum(["high", "mid", "low", "unscored"]).nullable(),
+  archived: z.boolean().nullable(),
+  archiveReason: z.string().nullable(),
   pushedAt: z.date().nullable(),
   lastFetchedAt: z.date().nullable(),
   aiStatus: z.string().default("none"),
@@ -115,6 +119,8 @@ export interface AgentDossier {
   techStack: string[];
   useCases: string[];
   alternatives: string[];
+  pros: string[];
+  cons: string[];
   knowledgeTags: string[];
   maturity: "active" | "stable" | "inactive";
   confidence: "high" | "medium" | "low";

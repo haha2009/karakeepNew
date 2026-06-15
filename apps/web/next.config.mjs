@@ -1,4 +1,9 @@
 import bundleAnalyzer from "@next/bundle-analyzer";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -8,12 +13,13 @@ const withBundleAnalyzer = bundleAnalyzer({
 const nextConfig = {
   output: "standalone",
   turbopack: {
+    root: path.resolve(__dirname, "../.."),
     rules: {
       "*.svg": {
         loaders: ["@svgr/webpack"],
         as: "*.js",
       },
-    },
+   },
   },
   webpack: (config) => {
     config.module.rules.push({
@@ -53,7 +59,7 @@ const nextConfig = {
     ];
   },
 
-  // transpilePackages: ["@karakeep/shared", "@karakeep/db", "@karakeep/trpc"],
+  transpilePackages: ["nuqs"],
 
   /** We already do linting and typechecking as separate tasks in CI */
   typescript: { ignoreBuildErrors: true },

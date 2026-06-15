@@ -200,22 +200,16 @@ function GitHubImage({
 function GitHubContent({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
   const api = useTRPC();
   const queryClient = useQueryClient();
-  const queueDepth = useQuery(
-    api.github.queueDepth.queryOptions({ bookmarkId: bookmark.id }),
-  );
   const triggerMutation = useMutation(
     api.github.triggerDeepDive.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(api.bookmarks.getBookmarks.pathFilter());
-        queryClient.invalidateQueries(api.github.queueDepth.pathFilter());
       },
     }),
   );
   const gh = bookmark.githubProject;
   if (!gh) return null;
-  const tags = gh.tags?.filter(Boolean) ?? [];
   const summary = gh.humanSummary ?? gh.description;
-  const { total = 0, position = 0 } = queueDepth.data ?? {};
   return (
     <div className="flex flex-col gap-2">
       {gh.aiStatus === "completed" && summary && (
@@ -232,22 +226,17 @@ function GitHubContent({ bookmark }: { bookmark: ZBookmarkTypeLink }) {
             className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-500 transition-colors enabled:hover:text-blue-700 disabled:opacity-60"
           >
             <Sparkle className="size-3.5" />
-            {gh.aiStatus === "pending"
-              ? triggerMutation.isPending
-                ? "AI 分析中..."
-                : `AI 分析中 (${position}/${total})`
-              : triggerMutation.isPending
-                ? "正在加入..."
-                : `AI 识别${total > 0 ? ` (${position}/${total})` : ""}`}
+            {triggerMutation.isPending ? "AI 分析中..." : "AI 识别"}
           </button>
           {summary && (
             <p className="text-sm leading-snug text-gray-400">{summary}</p>
           )}
         </div>
       )}
-      {tags.length > 0 && (
+      {/* Tags — show from githubProjects.tags (bookmark tags may differ) */}
+      {gh.tags && gh.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
+          {gh.tags.filter(Boolean).map((tag) => (
             <span
               key={tag}
               className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700"

@@ -44,8 +44,9 @@ agentCmd
         const stars = p.stars ? chalk.yellow(`${p.stars}★`) : "";
         const lang = p.language ? chalk.cyan(p.language) : "";
         const summary = p.humanSummary ? chalk.dim(` — ${p.humanSummary}`) : "";
+        const valueBadge = p.valueScore === "high" ? chalk.green(" [high]") : p.valueScore === "mid" ? chalk.yellow(" [mid]") : p.valueScore === "low" ? chalk.red(" [low]") : "";
         console.log(
-          `  ${chalk.green(p.fullName)}  ${stars}  ${lang}${summary}`,
+          `  ${chalk.green(p.fullName)}  ${stars}  ${lang}${valueBadge}${summary}`,
         );
       }
       console.log();
@@ -90,6 +91,23 @@ agentCmd
         console.log(
           `  Tags: ${result.tags.map((t) => chalk.green(t)).join(", ")}`,
         );
+      }
+      if (result.agentTags && result.agentTags.length > 0) {
+        console.log(
+          `  Agent Tags: ${result.agentTags.map((t) => chalk.dim(t)).join(", ")}`,
+        );
+      }
+      if (result.valueScore) {
+        const color =
+          result.valueScore === "high"
+            ? chalk.green
+            : result.valueScore === "mid"
+              ? chalk.yellow
+              : chalk.red;
+        console.log(`  Value: ${color(result.valueScore)}`);
+      }
+      if (result.archived) {
+        console.log(`  ${chalk.dim("Archived")}: ${chalk.red("yes")}${result.archiveReason ? chalk.dim(` — ${result.archiveReason}`) : ""}`);
       }
       if (result.agentDossier) {
         console.log(`\n  ${chalk.bold("Agent Dossier:")}`);
@@ -143,8 +161,9 @@ agentCmd
         const stars = p.stars ? chalk.yellow(`${p.stars}★`) : "";
         const lang = p.language ? chalk.cyan(p.language) : "";
         const summary = p.humanSummary ? chalk.dim(` — ${p.humanSummary}`) : "";
+        const valueBadge = p.valueScore === "high" ? chalk.green(" [high]") : p.valueScore === "mid" ? chalk.yellow(" [mid]") : p.valueScore === "low" ? chalk.red(" [low]") : "";
         console.log(
-          `  ${i + 1}. ${chalk.green(p.fullName)}  ${stars}  ${lang}${summary}`,
+          `  ${i + 1}. ${chalk.green(p.fullName)}  ${stars}  ${lang}${valueBadge}${summary}`,
         );
       }
       console.log(`\n  ${chalk.dim(result.matchReason)}`);

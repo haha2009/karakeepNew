@@ -11,10 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/lib/auth/client";
 import { useReaderSettings } from "@/lib/readerSettings";
 import { useQuery } from "@tanstack/react-query";
-import { HighlighterIcon as Highlight, Printer, X } from "lucide-react";
+import { HighlighterIcon as Highlight, Printer, Sparkles, X } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
-import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import { BookmarkTypes, type AgentDossier } from "@karakeep/shared/types/bookmarks";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { READER_FONT_FAMILIES } from "@karakeep/shared/types/readers";
 import { getBookmarkTitle } from "@karakeep/shared/utils/bookmarkUtils";
 
@@ -158,6 +160,10 @@ function ReaderViewPageContent({ bookmarkId }: { bookmarkId: string }) {
                     />
                   </div>
                 </Suspense>
+
+                {bookmark.githubProject?.agentDossier && (
+                  <AgentDossierSection dossier={bookmark.githubProject.agentDossier as AgentDossier} />
+                )}
               </>
             ) : (
               <FullPageSpinner />
@@ -205,5 +211,140 @@ function ReaderViewPageContent({ bookmarkId }: { bookmarkId: string }) {
         )}
       </div>
     </div>
+  );
+}
+
+function AgentDossierSection({ dossier }: { dossier: AgentDossier }) {
+  return (
+    <section className="mx-auto mt-12 max-w-3xl px-4 sm:px-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Sparkles className="size-5 text-yellow-500" />
+            AI Project Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {dossier.oneLiner && (
+            <p className="text-lg font-medium text-foreground">
+              {dossier.oneLiner}
+            </p>
+          )}
+
+          {dossier.overview && (
+            <div>
+              <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Overview
+              </h4>
+              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                {dossier.overview}
+              </p>
+            </div>
+          )}
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {dossier.keyFeatures && dossier.keyFeatures.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Key Features
+                </h4>
+                <ul className="space-y-1">
+                  {dossier.keyFeatures.map((f, i) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {dossier.techStack && dossier.techStack.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Tech Stack
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {dossier.techStack.map((t, i) => (
+                    <Badge key={i} variant="secondary">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {dossier.useCases && dossier.useCases.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Use Cases
+                </h4>
+                <ul className="space-y-1">
+                  {dossier.useCases.map((u, i) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
+                      {u}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {dossier.alternatives && dossier.alternatives.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Alternatives
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {dossier.alternatives.map((a, i) => (
+                    <Badge key={i} variant="outline">
+                      {a}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {dossier.category && (
+              <Badge variant="default">{dossier.category}</Badge>
+            )}
+            {dossier.maturity && (
+              <Badge
+                variant={
+                  dossier.maturity === "active"
+                    ? "default"
+                    : dossier.maturity === "stable"
+                      ? "secondary"
+                      : "outline"
+                }
+              >
+                {dossier.maturity}
+              </Badge>
+            )}
+            {dossier.confidence && (
+              <Badge variant="outline" className="text-muted-foreground">
+                confidence: {dossier.confidence}
+              </Badge>
+            )}
+            {dossier.knowledgeTags && dossier.knowledgeTags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {dossier.knowledgeTags.map((t, i) => (
+                  <span
+                    key={i}
+                    className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }

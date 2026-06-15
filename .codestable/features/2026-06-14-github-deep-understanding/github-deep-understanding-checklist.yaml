@@ -1,0 +1,103 @@
+steps:
+  - id: step-0-micro-refactor
+    title: 微重构 — classifyGitHubProject 移入 github.ts
+    description: |
+      将 classify.ts 中的 classifyGitHubProject() 函数和 gitHubResponseSchema 定义移至 inference/github.ts，
+      classify.ts 保留调用入口（导入后调用）。
+    status: skipped
+
+  - id: step-1-data-layer
+    title: 数据层 — githubProjects 表新增 agentTags / valueScore / archived / archiveReason
+    description: |
+      在 packages/db/schema.ts 和 packages/shared/types/bookmarks.ts 中：
+      - githubProjects 表新增 agentTags(valueScore/archived/archiveReason) 字段
+      - AgentDossier 接口补充字段
+      - ZGitHubProjectSchema 同步更新
+    status: done
+
+  - id: step-2-ai-unify
+    title: AI 分析统一 — classifyGitHubProject + GitHubDeepDiveWorker 升级 prompt
+    description: |
+      classifyGitHubProject() 和 GitHubDeepDiveWorker 的 prompt 升级为统一输出五件套：
+      humanSummary + humanTags + agentDossier + agentTags + valueScore
+      agentDossier 补充 pros/cons 维度
+    status: done
+
+  - id: step-3-source-extraction
+    title: 来源提取 — X/Twitter 推荐来源写入 project_recommendations
+    description: |
+      爬虫完成后，检测来源 URL 是否为 X/Twitter，提取推文作者/原文，写入 project_recommendations。
+      在后续 AI 分析时，agentDossier 的 overview 中融合推荐语境。
+    status: done
+
+  - id: step-4-archive
+    title: 归档决策 — 价值评分 + 自动归档逻辑
+    description: |
+      AI 分析后在 githubProjects 记录 valueScore 评分。
+      规则兜底：star<100+不活跃→low。低价值自动 archived=true，归档原因写入 archiveReason。
+      用户可手动取消归档。
+    status: done
+
+  - id: step-5-cli
+    title: CLI 扩展 — agent find/project 返回新字段
+    description: |
+      apps/cli/src/commands/agent.ts 中 agent find/project/recommend 命令
+      的 --json 输出增加 agentTags/valueScore/archived/recommendations 字段。
+    status: done
+
+  - id: step-6-webui
+    title: Web UI 调整 — 展示归档状态/价值评分/agent 数据悬停
+    description: |
+      apps/web/app/dashboard/projects/page.tsx 项目卡片：
+      - 归档项目视觉标记
+      - 价值评分标记（high=绿色/mid=黄色/low=灰色）
+      - 悬停时展示 agentDossier 关键信息
+    status: done
+
+checks:
+  - id: check-human-summary
+    description: |
+      收藏 GitHub 项目后，humanSummary 是 30-60 字中文通俗总结，
+      非技术人员读完能复述"这项目是干什么的"
+    status: done
+
+  - id: check-agent-dossier
+    description: |
+      agentDossier 包含 oneLiner/overview/category/keyFeatures/techStack/
+      useCases/alternatives/pros/cons/knowledgeTags/maturity/confidence，
+      结构完整可被 Agent 消费
+    status: done
+
+  - id: check-dual-tags
+    description: |
+      humanTags（中文宽泛）+ agentTags（英文精确）两套标签各自写入正确字段
+      humanTags 在 UI 展示，agentTags 在 CLI --json 输出
+    status: done
+
+  - id: check-dedup
+    description: |
+      同一 fullName 从两个渠道进来，只创建一条 githubProjects 记录，
+      第二条仅追加 project_recommendations 来源
+    status: done
+
+  - id: check-x-extraction
+    description: |
+      收藏 X 推文（含 GitHub 链接），project_recommendations 表正确写入
+      recommenderUsername/recommendationContext/originalPostUrl
+    status: done
+
+  - id: check-archive
+    description: |
+      低价值项目自动 archived=true，UI 不展示在主信息流，
+      手动取消归档后恢复正常展示
+    status: done
+
+  - id: check-cli-output
+    description: |
+      'karakeep agent find 搜索 --json' 返回的 JSON 包含
+      agentTags/valueScore/archived 字段
+    status: done
+
+  - id: check-typecheck
+    description: pnpm typecheck 通过
+    status: passed

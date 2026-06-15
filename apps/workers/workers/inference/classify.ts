@@ -163,6 +163,8 @@ async function fetchBookmarkDetails(bookmarkId: string) {
 const gitHubResponseSchema = z.object({
   summary: z.string(),
   tags: z.array(z.string()),
+  valueScore: z.enum(["high", "mid", "low"]),
+  agentTags: z.array(z.string()),
   targetFolder: z.string().nullable(),
   agentDossier: z.record(z.string(), z.unknown()).nullable(),
 });
@@ -184,27 +186,37 @@ async function classifyGitHubProject(
     return;
   }
 
-  const systemPrompt = `你把 GitHub 项目当做一个创业项目来评估。
+  const systemPrompt = `你是技术分析专家。分析这个 GitHub 项目，输出双层理解：给普通人看的人话总结，和给 AI Agent 用的技术档案。
 
-分析项目，返回 JSON：
+必须严格按照以下 JSON 格式返回，不得包含任何其他文字：
 
 {
-  "summary": "一句话说清这个项目解决什么问题（65字以内，含标点）",
-  "tags": ["中文标签", "如：安全/前端/AI/工具/数据库等"],
-  "targetFolder": null,
+  "summary": "30-60字中文通俗总结，说清项目解决什么问题（卡片标题已显示项目名，summary 不要重复项目名）",
+  "tags": ["中文宽泛标签", "2-4个领域标签"],
+  "valueScore": "high | mid | low（创新性+实用性+活跃度，high=首创/同类最佳/高增长，mid=有用但非突出，low=过时/简单/小众）",
+  "agentTags": ["精确英文标签", "5-10个用于搜索的技术标签"],
   "agentDossier": {
-    "purpose": "What it does (English, one line)",
-    "techStack": ["key technologies"],
-    "architecture": "Brief architecture",
-    "keyFeatures": ["main features"],
-    "useCases": ["use cases"]
+    "oneLiner": "一句话定位（20字内）",
+    "overview": "200-500字完整技术介绍，Agent 用",
+    "category": "分类标签",
+    "keyFeatures": ["核心功能点"],
+    "techStack": ["关键技术"],
+    "useCases": ["适用场景"],
+    "alternatives": ["替代品/竞品"],
+    "pros": ["主要优势"],
+    "cons": ["主要局限"],
+    "knowledgeTags": ["5-10个搜索标签，同agentTags"],
+    "maturity": "active | stable | inactive",
+    "confidence": "high | medium | low"
   }
 }
 
 规则：
-- summary：中文，65字以内，像投资人看项目一样一句说清"这项目解决什么问题"
-- tags：中文，2-3个领域标签
-- agentDossier：英文技术信息，给 Agent CLI 用`;
+- summary：中文，30-60字，非技术人员也能看懂
+- tags：中文，2-4个宽泛领域标签，给人看
+- valueScore：基于项目综合价值判断
+- agentTags：英文，精确技术化，便于搜索匹配
+- agentDossier：完整技术分析，供 Agent 做技术选型决策`;
 
   const githubMeta = await db.query.githubProjects.findFirst({
     where: eq(githubProjects.id, ghProject.id),
@@ -279,19 +291,26 @@ Return ONLY valid JSON.`;
       humanSummary: parsed.summary,
       agentDossier: (parsed.agentDossier ?? null) as AgentDossier | null,
       tags: parsed.tags,
+      agentTags: parsed.agentTags,
+      valueScore: parsed.valueScore,
+      aiStatus: "completed",
       modifiedAt: new Date(),
     })
     .where(eq(githubProjects.id, ghProject.id));
 
-  if (parsed.summary) {
+  // Archive low-value projects automatically
+  if (parsed.valueScore === "low") {
     await db
-      .update(bookmarks)
-      .set({
-        summary: parsed.summary,
-        modifiedAt: new Date(),
-      })
-      .where(eq(bookmarks.id, bookmarkId));
+      .update(githubProjects)
+      .set({ archived: true, archiveReason: "AI 评分为低价值，自动归档" })
+      .where(eq(githubProjects.id, ghProject.id));
   }
+
+  // Note: bookmark.summary is intentionally NOT updated here because
+  // the card layout (BookmarkLayoutAdaptingCard) renders bookmark.summary
+  // while GitHubContent renders humanSummary — updating both would
+  // cause the same text to appear twice on the card.
+  // The summary is already available via githubProjects.humanSummary.
 
   if (parsed.tags.length > 0) {
     const cleanedTags = parsed.tags

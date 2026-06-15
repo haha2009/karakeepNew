@@ -10,7 +10,7 @@ import { api } from "@/server/api/client";
 import { getServerAuthSession } from "@/server/auth";
 import { TRPCError } from "@trpc/server";
 import { TFunction } from "i18next";
-import { Archive, ClipboardList, Highlighter, Home, Tag } from "lucide-react";
+import { Archive, ClipboardList, Highlighter, Home, Tag, GitFork } from "lucide-react";
 import { tryCatch } from "@karakeep/shared/tryCatch";
 
 export default async function Dashboard({
@@ -67,6 +67,11 @@ export default async function Dashboard({
         name: t("common.archive"),
         icon: <Archive size={18} />,
         path: "/dashboard/archive",
+      },
+      {
+        name: "GitHub Projects",
+        icon: <GitFork size={18} />,
+        path: "/dashboard/projects",
       },
     ].flat();
 

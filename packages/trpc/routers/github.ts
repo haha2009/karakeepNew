@@ -7,7 +7,7 @@ import {
   extractGitHubRepo,
   fetchGitHubOGImage,
   fetchGitHubRepoMetadata,
-  GitHubDeepDiveQueue,
+  runGitHubDeepDive,
 } from "@karakeep/shared-server";
 import { zGitHubProjectSchema } from "@karakeep/shared/types/bookmarks";
 
@@ -42,6 +42,10 @@ function mapProject(p: typeof githubProjects.$inferSelect) {
     humanSummary: p.humanSummary,
     agentDossier: p.agentDossier,
     tags: p.tags,
+    agentTags: p.agentTags,
+    valueScore: p.valueScore,
+    archived: p.archived,
+    archiveReason: p.archiveReason,
     pushedAt: p.pushedAt,
     lastFetchedAt: p.lastFetchedAt,
     aiStatus: p.aiStatus,
@@ -58,6 +62,7 @@ export const githubAppRouter = router({
         language: z.string().optional(),
         tag: z.string().optional(),
         minStars: z.number().optional(),
+        includeArchived: z.boolean().optional().default(false),
         limit: z.number().max(100).optional().default(20),
         sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
       }),
@@ -69,6 +74,10 @@ export const githubAppRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const conditions = [eq(githubProjects.userId, ctx.user.id)];
+
+      if (!input.includeArchived) {
+        conditions.push(eq(githubProjects.archived, false));
+      }
 
       if (input.query) {
         conditions.push(
@@ -189,8 +198,12 @@ export const githubAppRouter = router({
         })
         .where(eq(bookmarkLinks.id, input.bookmarkId));
 
-      GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId }).catch((e) =>
-        console.error("[github] Failed to enqueue deep dive:", e),
+      // Run deep dive analysis inline (metadata is already updated above)
+      await runGitHubDeepDive({
+        bookmarkId: input.bookmarkId,
+        db: ctx.db,
+      }).catch((e) =>
+        console.error("[github] Deep dive failed:", e),
       );
 
       const project = await ctx.db.query.githubProjects.findFirst({
@@ -212,14 +225,18 @@ export const githubAppRouter = router({
       )
         return;
 
-      await ctx.db
-        .update(githubProjects)
-        .set({ aiStatus: "none", humanSummary: null, agentDossier: null })
-        .where(eq(githubProjects.bookmarkId, input.bookmarkId));
+      // Run the deep dive analysis INLINE (no queue/worker needed)
+      const result = await runGitHubDeepDive({
+        bookmarkId: input.bookmarkId,
+        db: ctx.db,
+      });
 
-      GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId }).catch((e) =>
-        console.error("[github] Failed to enqueue deep dive:", e),
-      );
+      if (!result.success) {
+        console.error(
+          "[github] Deep dive failed:",
+          result.error,
+        );
+      }
     }),
 
   queueDepth: githubProcedure
@@ -330,30 +347,10 @@ export const githubAppRouter = router({
         .filter((k) => k.length > 2);
 
       const projects = await ctx.db.query.githubProjects.findMany({
-        where: eq(githubProjects.userId, ctx.user.id),
-        columns: {
-          id: true,
-          fullName: true,
-          description: true,
-          humanSummary: true,
-          tags: true,
-          language: true,
-          stars: true,
-          topics: true,
-          url: true,
-          name: true,
-          owner: true,
-          homepage: true,
-          license: true,
-          agentDossier: true,
-          pushedAt: true,
-          lastFetchedAt: true,
-          bookmarkId: true,
-          userId: true,
-          aiStatus: true,
-          createdAt: true,
-          modifiedAt: true,
-        },
+        where: and(
+          eq(githubProjects.userId, ctx.user.id),
+          eq(githubProjects.archived, false),
+        ),
       });
 
       type Scored = (typeof projects)[number] & { score: number };
