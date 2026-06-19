@@ -38,7 +38,6 @@
     "description": "描述",
     "summary": "摘要",
     "quota": "配额",
-    "bookmarks": "书签",
     "storage": "存储",
     "pdf": "已存档的 PDF",
     "default": "默认",
@@ -1170,6 +1169,22 @@
     "download": "下载",
     "close": "关闭",
     "generating": "正在生成..."
+  },
+  "stats": {
+    "today_count": "今日采集量",
+    "total_count": "累计总量",
+    "usage_days": "使用天数",
+    "heatmap_title": "采集活动",
+    "days": "天"
+  },
+  "add": {
+    "manual_url": "手动输入网址",
+    "rss_feed": "订阅 RSS 源",
+    "other": "其他（敬请期待）"
+  },
+  "bookmarks": {
+    "title": "采集",
+    "no_bookmarks_in_month": "该月暂无采集记录"
   }
 }
 

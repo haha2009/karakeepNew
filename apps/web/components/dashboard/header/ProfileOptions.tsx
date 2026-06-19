@@ -26,7 +26,7 @@ import {
   Sun,
   Twitter,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 import { useWhoAmI } from "@karakeep/shared-react/hooks/users";
 

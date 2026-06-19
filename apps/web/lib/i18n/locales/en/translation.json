@@ -42,7 +42,6 @@
       "media": "Media"
     },
     "quota": "Quota",
-    "bookmarks": "Bookmarks",
     "storage": "Storage"
   },
   "layouts": {
@@ -1166,6 +1165,22 @@
     "deselect_all": "Deselect all",
     "show_help": "Show keyboard shortcuts",
     "focus_search_alt": "Focus search"
+  },
+  "stats": {
+    "today_count": "Today's Count",
+    "total_count": "Total",
+    "usage_days": "Days Used",
+    "heatmap_title": "Collection Activity",
+    "days": "days"
+  },
+  "add": {
+    "manual_url": "Manual URL",
+    "rss_feed": "Subscribe to RSS",
+    "other": "Other (Coming Soon)"
+  },
+  "bookmarks": {
+    "title": "Collection",
+    "no_bookmarks_in_month": "No items collected this month"
   }
 }
 

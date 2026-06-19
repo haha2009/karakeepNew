@@ -1,10 +1,5 @@
-import React from "react";
-import Bookmarks from "@/components/dashboard/bookmarks/Bookmarks";
+import BookmarkStatsPage from "@/components/dashboard/bookmarks/BookmarkStatsPage";
 
-export default async function BookmarksPage() {
-  return (
-    <div>
-      <Bookmarks query={{ archived: false }} showEditorCard={true} />
-    </div>
-  );
+export default function BookmarksPage() {
+  return <BookmarkStatsPage />;
 }

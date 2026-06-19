@@ -1,20 +1,19 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ZOpenAIRequest } from "@karakeep/shared-server";
 import type { InferenceClient } from "@karakeep/shared/inference";
 import { db } from "@karakeep/db";
 import {
-  bookmarkLinks,
   bookmarks,
   bookmarkLists,
   bookmarksInLists,
   customPrompts,
-  githubProjects,
   users,
 } from "@karakeep/db/schema";
 import {
   addLogFields,
+  GitHubDeepDiveQueue,
   setSpanAttributes,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
@@ -23,7 +22,6 @@ import logger from "@karakeep/shared/logger";
 
 import { DequeuedJob, EnqueueOptions } from "@karakeep/shared/queueing";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
-import type { AgentDossier } from "@karakeep/shared/types/bookmarks";
 import { RuleEngine } from "@karakeep/trpc/lib/ruleEngine";
 import { Bookmark } from "@karakeep/trpc/models/bookmarks";
 import { WebhooksService } from "@karakeep/trpc/models/webhooks.service";
@@ -141,18 +139,12 @@ async function fetchBookmarkDetails(bookmarkId: string) {
           text: true,
         },
       },
+      // Only need to know whether a GitHub project is attached so we can
+      // route to GitHubDeepDiveQueue instead of running the generic
+      // classify pipeline. The deep-dive worker reads the full project.
       githubProject: {
         columns: {
           id: true,
-          fullName: true,
-          description: true,
-          stars: true,
-          language: true,
-          topics: true,
-          homepage: true,
-          license: true,
-          humanSummary: true,
-          agentDossier: true,
         },
       },
     },
@@ -160,229 +152,11 @@ async function fetchBookmarkDetails(bookmarkId: string) {
   return bookmark;
 }
 
-const gitHubResponseSchema = z.object({
-  summary: z.string(),
-  tags: z.array(z.string()),
-  valueScore: z.enum(["high", "mid", "low"]),
-  agentTags: z.array(z.string()),
-  targetFolder: z.string().nullable(),
-  agentDossier: z.record(z.string(), z.unknown()).nullable(),
-});
-
-async function classifyGitHubProject(
-  bookmarkId: string,
-  userId: string,
-  ghProject: { id: string; fullName: string; humanSummary: string | null },
-  job: DequeuedJob<ZOpenAIRequest>,
-  inferenceClient: InferenceClient,
-  textContent: string,
-) {
-  const jobId = job.id;
-
-  if (ghProject.humanSummary) {
-    logger.info(
-      `[inference][${jobId}] GitHub project ${ghProject.fullName} already has humanSummary, skipping`,
-    );
-    return;
-  }
-
-  const systemPrompt = `你是技术分析专家。分析这个 GitHub 项目，输出双层理解：给普通人看的人话总结，和给 AI Agent 用的技术档案。
-
-必须严格按照以下 JSON 格式返回，不得包含任何其他文字：
-
-{
-  "summary": "30-60字中文通俗总结，说清项目解决什么问题（卡片标题已显示项目名，summary 不要重复项目名）",
-  "tags": ["中文宽泛标签", "2-4个领域标签"],
-  "valueScore": "high | mid | low（创新性+实用性+活跃度，high=首创/同类最佳/高增长，mid=有用但非突出，low=过时/简单/小众）",
-  "agentTags": ["精确英文标签", "5-10个用于搜索的技术标签"],
-  "agentDossier": {
-    "oneLiner": "一句话定位（20字内）",
-    "overview": "200-500字完整技术介绍，Agent 用",
-    "category": "分类标签",
-    "keyFeatures": ["核心功能点"],
-    "techStack": ["关键技术"],
-    "useCases": ["适用场景"],
-    "alternatives": ["替代品/竞品"],
-    "pros": ["主要优势"],
-    "cons": ["主要局限"],
-    "knowledgeTags": ["5-10个搜索标签，同agentTags"],
-    "maturity": "active | stable | inactive",
-    "confidence": "high | medium | low"
-  }
-}
-
-规则：
-- summary：中文，30-60字，非技术人员也能看懂
-- tags：中文，2-4个宽泛领域标签，给人看
-- valueScore：基于项目综合价值判断
-- agentTags：英文，精确技术化，便于搜索匹配
-- agentDossier：完整技术分析，供 Agent 做技术选型决策`;
-
-  const githubMeta = await db.query.githubProjects.findFirst({
-    where: eq(githubProjects.id, ghProject.id),
-    columns: {
-      fullName: true,
-      description: true,
-      stars: true,
-      language: true,
-      topics: true,
-      license: true,
-    },
-  });
-
-  const contentPrompt = `<GITHUB_PROJECT>
-${
-  githubMeta
-    ? `Full Name: ${githubMeta.fullName}
-Description: ${githubMeta.description ?? ""}
-Stars: ${githubMeta.stars ?? "unknown"}
-Language: ${githubMeta.language ?? "unknown"}
-Topics: ${(githubMeta.topics ?? []).join(", ")}
-License: ${githubMeta.license ?? "unknown"}`
-    : ghProject.fullName
-}
-</GITHUB_PROJECT>
-
-<README_CONTENT>
-${textContent.slice(0, 6000)}
-</README_CONTENT>
-
-特别注意：
-- summary 必须 65 字以内，像投资人看项目一样一句话说清"解决了什么"
-- 不是翻译 README，是提炼核心价值
-
-Return ONLY valid JSON.`;
-
-  const fullPrompt = `${systemPrompt}\n\n${contentPrompt}`;
-
-  addLogFields<"inferenceWorker.run">({
-    "inference.prompt.size": Buffer.byteLength(fullPrompt, "utf8"),
-  });
-
-  const inferenceResult = await inferenceClient.inferFromText(fullPrompt, {
-    schema: gitHubResponseSchema,
-    abortSignal: job.abortSignal,
-  });
-
-  if (!inferenceResult.response) {
-    throw new Error(
-      `[inference][${jobId}] Failed to classify GitHub project ${bookmarkId}, empty response.`,
-    );
-  }
-
-  let parsed: z.infer<typeof gitHubResponseSchema>;
-  try {
-    parsed = gitHubResponseSchema.parse(
-      parseJsonFromLLMResponse(inferenceResult.response),
-    );
-  } catch (e) {
-    throw new Error(
-      `[inference][${jobId}] Failed to parse GitHub project response: ${e}. Raw: ${inferenceResult.response.substring(0, 100)}`,
-    );
-  }
-
-  logger.info(
-    `[inference][${jobId}] Classified GitHub project "${ghProject.fullName}" using ${inferenceResult.totalTokens} tokens. Summary: "${parsed.summary.substring(0, 60)}...", Tags: ${parsed.tags.join(", ")}`,
-  );
-
-  await db
-    .update(githubProjects)
-    .set({
-      humanSummary: parsed.summary,
-      agentDossier: (parsed.agentDossier ?? null) as AgentDossier | null,
-      tags: parsed.tags,
-      agentTags: parsed.agentTags,
-      valueScore: parsed.valueScore,
-      aiStatus: "completed",
-      modifiedAt: new Date(),
-    })
-    .where(eq(githubProjects.id, ghProject.id));
-
-  // Archive low-value projects automatically
-  if (parsed.valueScore === "low") {
-    await db
-      .update(githubProjects)
-      .set({ archived: true, archiveReason: "AI 评分为低价值，自动归档" })
-      .where(eq(githubProjects.id, ghProject.id));
-  }
-
-  // Note: bookmark.summary is intentionally NOT updated here because
-  // the card layout (BookmarkLayoutAdaptingCard) renders bookmark.summary
-  // while GitHubContent renders humanSummary — updating both would
-  // cause the same text to appear twice on the card.
-  // The summary is already available via githubProjects.humanSummary.
-
-  if (parsed.tags.length > 0) {
-    const cleanedTags = parsed.tags
-      .map((t) => {
-        let tag = t;
-        if (tag.startsWith("#")) tag = tag.slice(1);
-        return tag.trim();
-      })
-      .filter(Boolean);
-    await connectTags(bookmarkId, cleanedTags, userId);
-  }
-
-  const owner = ghProject.fullName.split("/")[0];
-  if (owner) {
-    await db
-      .update(bookmarkLinks)
-      .set({ imageUrl: `https://github.com/${owner}.png` })
-      .where(
-        and(eq(bookmarkLinks.id, bookmarkId), isNull(bookmarkLinks.imageUrl)),
-      );
-  }
-
-  const enqueueOpts: EnqueueOptions = {
-    priority: job.priority,
-    groupId: userId,
-  };
-
-  {
-    const webhookService = new WebhooksService(db);
-    await webhookService.triggerWebhook(
-      bookmarkId,
-      "ai tagged",
-      userId,
-      enqueueOpts,
-    );
-  }
-
-  await triggerSearchReindex(bookmarkId, enqueueOpts);
-
-  const ghFolders = await db.query.bookmarkLists.findMany({
-    where: and(
-      eq(bookmarkLists.userId, userId),
-      eq(bookmarkLists.type, "manual"),
-      eq(bookmarkLists.name, "GitHub"),
-    ),
-    columns: { id: true },
-  });
-
-  for (const folder of ghFolders) {
-    await db
-      .insert(bookmarksInLists)
-      .values({
-        listId: folder.id,
-        bookmarkId,
-      })
-      .onConflictDoNothing();
-
-    await RuleEngine.triggerOnEvent(
-      userId,
-      bookmarkId,
-      [{ type: "addedToList", listId: folder.id }],
-      undefined,
-      db,
-    );
-  }
-
-  if (ghFolders.length > 0) {
-    logger.info(
-      `[inference][${jobId}] Added GitHub project bookmark "${bookmarkId}" to folder "GitHub 项目"`,
-    );
-  }
-}
+// NOTE: GitHub projects used to be classified inline here via
+// `classifyGitHubProject` (a second AI call producing summary + dossier).
+// That duplicated the canonical pipeline in shared-server/github.ts
+// `runGitHubDeepDive`. GitHub projects now route exclusively through
+// `GitHubDeepDiveQueue` — see `runClassify` below.
 
 export async function runClassify(
   bookmarkId: string,
@@ -484,14 +258,19 @@ Author: ${link.author ?? ""}
   }
 
   if (bookmarkData.githubProject) {
-    return classifyGitHubProject(
-      bookmarkId,
-      bookmarkData.userId,
-      bookmarkData.githubProject,
-      job,
-      inferenceClient,
-      textContent,
+    // GitHub projects have their own dedicated deep-dive pipeline (rules +
+    // a single AI call) in shared-server/github.ts. Route there instead of
+    // running the generic classify prompt, which would duplicate work and
+    // produce inconsistent results. The autoCreateGitHubBookmarks call at
+    // the end of this function is still reached via the normal flow.
+    logger.info(
+      `[inference][${job.id}] GitHub project bookmark "${bookmarkId}" — routing to GitHubDeepDiveQueue`,
     );
+    await GitHubDeepDiveQueue.enqueue(
+      { bookmarkId },
+      { priority: job.priority, groupId: bookmarkData.userId },
+    );
+    return;
   }
 
   const allLists = await db.query.bookmarkLists.findMany({

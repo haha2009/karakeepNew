@@ -130,12 +130,7 @@ export default function Providers({
           <QueryClientProvider client={queryClient}>
             <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
               <CustomI18nextProvider lang={userLocalSettings.lang}>
-                <ThemeProvider
-                  attribute="class"
-                  defaultTheme="system"
-                  enableSystem
-                  disableTransitionOnChange
-                >
+                <ThemeProvider defaultTheme="system">
                   <TooltipProvider delayDuration={0}>
                     {children}
                   </TooltipProvider>

@@ -63,6 +63,19 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    /* Heatmap colors */
+    --heatmap-1: #9be9a8;
+    --heatmap-2: #40c463;
+    --heatmap-3: #30a14e;
+    --heatmap-4: #216e39;
+  }
+
+  .dark {
+    --heatmap-1: #16432d;
+    --heatmap-2: #0e6b30;
+    --heatmap-3: #00a14e;
+    --heatmap-4: #00d65e;
   }
 }
 

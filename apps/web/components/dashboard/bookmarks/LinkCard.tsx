@@ -6,7 +6,7 @@ import Link from "next/link";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { ExternalLink, Sparkles, Sparkle } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useUserSettings } from "@/lib/userSettings";
 import { useTRPC } from "@karakeep/shared-react/trpc";

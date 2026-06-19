@@ -7,14 +7,17 @@ import { Separator } from "@/components/ui/separator";
 import { ReaderSettingsProvider } from "@/lib/readerSettings";
 import { UserSettingsContextProvider } from "@/lib/userSettings";
 import { api } from "@/server/api/client";
+import { getQueryClient, serverTrpc } from "@/server/api/trpc";
 import { getServerAuthSession } from "@/server/auth";
 import { TRPCError } from "@trpc/server";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { TFunction } from "i18next";
 import {
   Archive,
+  Brain,
   ClipboardList,
+  Database,
   Highlighter,
-  Home,
   Tag,
   GitFork,
 } from "lucide-react";
@@ -53,12 +56,24 @@ export default async function Dashboard({
     throw lists.error;
   }
 
+  // Pre-fill the server-side QueryClient cache so React Query on the client
+  // hydrates with the exact same data, preventing hydration mismatches.
+  const queryClient = getQueryClient();
+  const listsOptions = serverTrpc.lists.list.queryOptions();
+  queryClient.setQueryData(listsOptions.queryKey, lists.data);
+  const dehydratedState = dehydrate(queryClient);
+
   const items = (t: TFunction) =>
     [
       {
-        name: t("common.home"),
-        icon: <Home size={18} />,
+        name: "采集",
+        icon: <Database size={18} />,
         path: "/dashboard/bookmarks",
+      },
+      {
+        name: "AI 理解",
+        icon: <Brain size={18} />,
+        path: "/dashboard/ai-insights",
       },
       {
         name: t("common.tags"),
@@ -92,26 +107,28 @@ export default async function Dashboard({
   ];
 
   return (
-    <UserSettingsContextProvider userSettings={userSettings.data}>
-      <ReaderSettingsProvider>
-        <SidebarLayout
-          sidebar={
-            <Sidebar
-              items={items}
-              extraSections={
-                <>
-                  <Separator />
-                  <AllLists initialData={lists.data} />
-                </>
-              }
-            />
-          }
-          mobileSidebar={<MobileSidebar items={mobileSidebar} />}
-          modal={modal}
-        >
-          {children}
-        </SidebarLayout>
-      </ReaderSettingsProvider>
-    </UserSettingsContextProvider>
+    <HydrationBoundary state={dehydratedState}>
+      <UserSettingsContextProvider userSettings={userSettings.data}>
+        <ReaderSettingsProvider>
+          <SidebarLayout
+            sidebar={
+              <Sidebar
+                items={items}
+                extraSections={
+                  <>
+                    <Separator />
+                    <AllLists initialData={lists.data} />
+                  </>
+                }
+              />
+            }
+            mobileSidebar={<MobileSidebar items={mobileSidebar} />}
+            modal={modal}
+          >
+            {children}
+          </SidebarLayout>
+        </ReaderSettingsProvider>
+      </UserSettingsContextProvider>
+    </HydrationBoundary>
   );
 }

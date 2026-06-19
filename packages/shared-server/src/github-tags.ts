@@ -511,6 +511,48 @@ export interface RuleMatch {
  * 基于 GitHub topics 和元数据，做规则预分类。
  * 返回按置信度排序的匹配列表。
  */
+/**
+ * Words of length <= 3 that must NOT use substring matching, because they
+ * appear as substrings of unrelated words (e.g. "go" in "goodbye", "ai" in
+ * "tailwind", "db" in "adblock"). For these we require exact token equality.
+ */
+const SHORT_AMBIGUOUS_KEYWORDS = new Set([
+  "go",
+  "ai",
+  "db",
+  "vm",
+  "os",
+  "ci",
+  "cd",
+  "sql",
+  "bot",
+  "api",
+  "cms",
+  "rpa",
+  "iot",
+  "seo",
+  "pwa",
+  "css",
+  "svg",
+  "3d",
+  "sdl",
+]);
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Build a regex that matches `kw` as a whole word (alnum/hyphen boundary),
+ * case-insensitive. Used for description/name matching so that short keywords
+ * like "go" don't match "goodbye".
+ */
+function wordBoundaryRegex(kw: string): RegExp {
+  // Treat hyphen as part of the token (many topic keywords are hyphenated),
+  // so the boundary is anything that is not [a-z0-9-].
+  return new RegExp(`(?<![a-z0-9-])${escapeRegExp(kw)}(?![a-z0-9-])`, "i");
+}
+
 export function classifyByRules(params: {
   topics: string[];
   description: string;
@@ -525,13 +567,17 @@ export function classifyByRules(params: {
     const def = TAXONOMY[cat];
     if (cat === "other") continue;
 
-    // Topics 匹配：每个匹配 topic 累计 25 分
+    // Topics 匹配：每个匹配 topic 累计 25 分。
+    // 短/歧义词（go/ai/db…）要求 topic 完全相等，避免 "navigation-go"
+    // 或 "google" 这类误命中；长词允许前缀包含（如 "react-native" 命中 "react"）。
     for (const kw of def.topicKeywords) {
-      const matched = topics.filter(
-        (t) =>
-          t.toLowerCase() === kw.toLowerCase() ||
-          t.toLowerCase().includes(kw.toLowerCase()),
-      );
+      const kwLower = kw.toLowerCase();
+      const isShort = SHORT_AMBIGUOUS_KEYWORDS.has(kwLower);
+      const matched = topics.filter((t) => {
+        const tl = t.toLowerCase();
+        if (isShort) return tl === kwLower;
+        return tl === kwLower || tl.includes(kwLower);
+      });
       if (matched.length > 0) {
         results.push({
           category: cat,
@@ -542,9 +588,9 @@ export function classifyByRules(params: {
       }
     }
 
-    // 描述匹配：命中的描述关键词累计 15 分
+    // 描述匹配：用词边界正则，避免 "go" 命中 "goodbye"
     for (const kw of def.descKeywords) {
-      if (desc.includes(kw)) {
+      if (wordBoundaryRegex(kw).test(desc)) {
         results.push({
           category: cat,
           confidence: 15,
@@ -554,9 +600,9 @@ export function classifyByRules(params: {
       }
     }
 
-    // 项目名匹配：直接命中名称关键词累计 10 分
+    // 项目名匹配：同样用词边界
     for (const kw of def.topicKeywords) {
-      if (nameLower.includes(kw)) {
+      if (wordBoundaryRegex(kw).test(nameLower)) {
         results.push({
           category: cat,
           confidence: 10,

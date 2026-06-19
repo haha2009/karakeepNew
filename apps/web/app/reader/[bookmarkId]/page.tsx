@@ -19,10 +19,8 @@ import {
 } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
-import {
-  BookmarkTypes,
-  type AgentDossier,
-} from "@karakeep/shared/types/bookmarks";
+import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import type { AgentDossier } from "@karakeep/shared/types/bookmarks";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { READER_FONT_FAMILIES } from "@karakeep/shared/types/readers";

@@ -1,8 +1,11 @@
 import { experimental_trpcMiddleware, TRPCError } from "@trpc/server";
-import { and, eq, gt, inArray, like, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import type { ZBookmarkContent } from "@karakeep/shared/types/bookmarks";
+import type {
+  ZBookmarkContent,
+  ZHeatmapDay,
+} from "@karakeep/shared/types/bookmarks";
 import type { ZBookmarkTags } from "@karakeep/shared/types/tags";
 import {
   assets,
@@ -47,6 +50,7 @@ import {
   BookmarkTypes,
   DEFAULT_NUM_BOOKMARKS_PER_PAGE,
   zBookmarkSchema,
+  zBookmarkStatsSchema,
   zGetBookmarksRequestSchema,
   zGetBookmarksResponseSchema,
   zManipulatedTagSchema,
@@ -497,12 +501,17 @@ export const bookmarksAppRouter = router({
               })
               .where(eq(bookmarkLinks.id, bookmark.id));
 
+            // Don't mark tagging/summarization as "success" here — the
+            // GitHubDeepDiveWorker will handle those statuses once it
+            // completes. Setting them to "success" prematurely causes the
+            // UI to think AI processing is done while the queue job
+            // hasn't even started.
             await ctx.db
               .update(bookmarks)
               .set({
-                taggingStatus: "success",
-                summarizationStatus: "success",
-                classificationStatus: "success",
+                taggingStatus: "pending",
+                summarizationStatus: "pending",
+                classificationStatus: "pending",
               })
               .where(eq(bookmarks.id, bookmark.id));
 
@@ -1027,6 +1036,84 @@ export const bookmarksAppRouter = router({
       return {
         bookmarks: res.bookmarks.map((b) => b.asZBookmark()),
         nextCursor: res.nextCursor,
+      };
+    }),
+
+  getStats: bookmarksProcedure
+    .output(zBookmarkStatsSchema)
+    .query(async ({ ctx }) => {
+      const userId = ctx.user.id;
+
+      // Total count
+      const totalResult = await ctx.db
+        .select({ count: sql<number>`count(*)` })
+        .from(bookmarks)
+        .where(eq(bookmarks.userId, userId));
+      const totalCount = totalResult[0]?.count ?? 0;
+
+      // Today count (UTC midnight to now)
+      const now = new Date();
+      const startOfToday = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      );
+      const todayResult = await ctx.db
+        .select({ count: sql<number>`count(*)` })
+        .from(bookmarks)
+        .where(
+          and(
+            eq(bookmarks.userId, userId),
+            gt(bookmarks.createdAt, startOfToday),
+          ),
+        );
+      const todayCount = todayResult[0]?.count ?? 0;
+
+      // Usage days: count distinct dates from createdAt
+      const usageDaysResult = await ctx.db
+        .select({
+          day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+        })
+        .from(bookmarks)
+        .where(eq(bookmarks.userId, userId))
+        .groupBy(
+          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+        );
+      const usageDays = usageDaysResult.length;
+
+      // Heatmap data: last 6 months of daily counts
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setUTCDate(1);
+      sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
+      sixMonthsAgo.setUTCHours(0, 0, 0, 0);
+
+      const heatmapResult = await ctx.db
+        .select({
+          day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+          count: sql<number>`count(*)`,
+        })
+        .from(bookmarks)
+        .where(
+          and(
+            eq(bookmarks.userId, userId),
+            gt(bookmarks.createdAt, sixMonthsAgo),
+          ),
+        )
+        .groupBy(
+          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+        )
+        .orderBy(
+          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+        );
+
+      const heatmapData: ZHeatmapDay[] = heatmapResult.map((r) => ({
+        date: r.day,
+        count: r.count,
+      }));
+
+      return {
+        todayCount,
+        totalCount,
+        usageDays,
+        heatmapData,
       };
     }),
 

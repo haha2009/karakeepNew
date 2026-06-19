@@ -499,10 +499,45 @@
                   "type": "string"
                 }
               },
+              "agentTags": {
+                "type": "array",
+                "nullable": true,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "valueScore": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  "high",
+                  "mid",
+                  "low",
+                  "unscored",
+                  null
+                ]
+              },
+              "archived": {
+                "type": "boolean",
+                "nullable": true
+              },
+              "archiveReason": {
+                "type": "string",
+                "nullable": true
+              },
+              "pushedAt": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time"
+              },
               "lastFetchedAt": {
                 "type": "string",
                 "nullable": true,
                 "format": "date-time"
+              },
+              "aiStatus": {
+                "type": "string",
+                "default": "none"
               }
             },
             "required": [
@@ -518,6 +553,11 @@
               "license",
               "humanSummary",
               "tags",
+              "agentTags",
+              "valueScore",
+              "archived",
+              "archiveReason",
+              "pushedAt",
               "lastFetchedAt"
             ]
           }

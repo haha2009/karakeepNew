@@ -8,6 +8,25 @@
 
 **你只做两件事：提需求 + 验收，其余 Agent 干。**
 
+### 提交前清理（标准工作流）
+
+**⚠️ 每次提交前必须先清理工作区，这是标准工作流的一部分，不可跳过。**
+
+清理范围（均为不提交的临时产物）：
+
+- **备份文件**：`*.bak`、`*.bak2`、`*.backup`、`*.new`、`*.working`、`*.template`
+- **临时状态文档**（根目录）：`ACCEPTANCE_*.md`、`FINAL_*.md`、`TASK_*.md`、`IMPLEMENTATION_*.md`、`COMPLETION_*.md`、`WORKING_*.md`、`*_STATUS.txt`、`*_CHECKLIST.md`、`VERIFICATION_*.md`、`PRODUCTION_READY_*.md`
+- **临时任务追踪 JSON**：`*-todos*.json`、`mark-*.json`、`complete-*.json`、`all-*-done.json`
+- **临时脚本**：根目录一次性 `*.sh`（正规脚本放 `scripts/`）
+- **异常目录**：名字含特殊字符的误建目录（如 `'`、空格开头）
+
+原则：
+
+- 正规产物归位：验收报告 → `.codestable/features/{slug}/{slug}-acceptance.md`；部署脚本 → `scripts/`；架构文档 → `docs/internal/architecture/`
+- **永不提交**备份文件和临时状态文档
+- 清理 → `pnpm typecheck` → `git add` → commit，确保每次 commit 干净
+- 上面的备份/工具目录模式已写入 `.gitignore`，但清理动作仍须人工执行
+
 ### 部署守则
 
 **⚠️ 严禁擅自推送到线上。每次上线必须经过用户明确同意并主动触发。**

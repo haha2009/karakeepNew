@@ -111,6 +111,16 @@ export const zGitHubProjectSchema = z.object({
 });
 export type ZGitHubProject = z.infer<typeof zGitHubProjectSchema>;
 
+export const zGitHubProjectFullSchema = zGitHubProjectSchema.extend({
+  id: z.string(),
+  userId: z.string(),
+  bookmarkId: z.string().nullable(),
+  lastFetchedAt: z.date().nullable(),
+  createdAt: z.date(),
+  modifiedAt: z.date().nullable(),
+});
+export type ZGitHubProjectFull = z.infer<typeof zGitHubProjectFullSchema>;
+
 export interface AgentDossier {
   oneLiner: string;
   overview: string;
@@ -263,6 +273,20 @@ export const zGetBookmarksResponseSchema = z.object({
   nextCursor: zCursorV2.nullable(),
 });
 export type ZGetBookmarksResponse = z.infer<typeof zGetBookmarksResponseSchema>;
+
+export const zHeatmapDaySchema = z.object({
+  date: z.string(), // "YYYY-MM-DD" format
+  count: z.number().int().nonnegative(),
+});
+export type ZHeatmapDay = z.infer<typeof zHeatmapDaySchema>;
+
+export const zBookmarkStatsSchema = z.object({
+  todayCount: z.number().int().nonnegative(),
+  totalCount: z.number().int().nonnegative(),
+  usageDays: z.number().int().nonnegative(),
+  heatmapData: z.array(zHeatmapDaySchema),
+});
+export type ZBookmarkStats = z.infer<typeof zBookmarkStatsSchema>;
 
 // PATCH /v1/bookmarks/[bookmarkId]
 export const zUpdateBookmarksRequestSchema = z.object({

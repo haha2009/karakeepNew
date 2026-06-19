@@ -3,7 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import useBulkTagActionsStore from "@/lib/bulkTagActions";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 
 export const MultiTagSelector = React.memo(function MultiTagSelector({
   id,

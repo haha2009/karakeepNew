@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { githubProjects, projectRecommendations } from "@karakeep/db/schema";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
+import type { AgentDossier } from "@karakeep/shared/types/bookmarks";
 import { TAXONOMY, classifyByRules } from "./github-tags";
 import logger from "@karakeep/shared/logger";
 
@@ -21,6 +22,46 @@ export interface GitHubRepoMetadata {
   pushedAt: string | null;
 }
 
+/**
+ * First path segment of github.com URLs that are NOT repositories
+ * (e.g. github.com/orgs/foo, github.com/settings/profile, github.com/topics/react).
+ * Used to reject non-repo URLs so we don't create junk bookmarks.
+ */
+const GITHUB_RESERVED_PATH_SEGMENTS = new Set([
+  "orgs",
+  "users",
+  "settings",
+  "topics",
+  "search",
+  "explore",
+  "features",
+  "pricing",
+  "about",
+  "trending",
+  "notifications",
+  "login",
+  "signup",
+  "join",
+  "sessions",
+  "security",
+  "customer-stories",
+  "marketplace",
+  "collections",
+  "events",
+  "sponsors",
+  "apps",
+  "integrations",
+  "enterprise",
+  "team",
+  "organizations",
+  "new",
+  "codespaces",
+  "copilot",
+  "gist",
+  "watching",
+  "stars",
+]);
+
 export function extractGitHubRepo(
   url: string,
 ): { owner: string; name: string; fullName: string } | null {
@@ -35,6 +76,10 @@ export function extractGitHubRepo(
     if (parts.length < 2) return null;
     const [owner, name] = parts;
     if (!owner || !name) return null;
+    // Reject reserved/non-repo paths (github.com/orgs/foo, github.com/settings/…)
+    if (GITHUB_RESERVED_PATH_SEGMENTS.has(owner.toLowerCase())) return null;
+    // Repo names shouldn't be a reserved segment either (defensive)
+    if (GITHUB_RESERVED_PATH_SEGMENTS.has(name.toLowerCase())) return null;
     return { owner, name, fullName: `${owner}/${name}` };
   } catch {
     return null;
@@ -151,12 +196,17 @@ function resolveReadmeUrl(url: string, owner: string, name: string): string {
   return `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/main/${clean}`;
 }
 
+/**
+ * Pick the best OG/banner image from a README. Accepts an already-fetched
+ * README string to avoid a second network request when the caller has one.
+ */
 export async function fetchGitHubOGImage(
   owner: string,
   name: string,
+  options?: { readme?: string | null },
 ): Promise<string | null> {
   try {
-    const readme = await fetchGitHubReadme(owner, name);
+    const readme = options?.readme ?? (await fetchGitHubReadme(owner, name));
     if (!readme) return null;
 
     const urls: { url: string; alt: string }[] = [];
@@ -217,7 +267,7 @@ export async function fetchGitHubReadme(
 
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
+      `${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/readme`,
       { headers: { ...headers, Accept: "application/vnd.github.v3.raw" } },
     );
     if (res.ok) return await res.text();
@@ -228,114 +278,150 @@ export async function fetchGitHubReadme(
   return null;
 }
 
-export async function generateGitHubHumanSummary(
-  meta: GitHubRepoMetadata,
-): Promise<string | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const baseUrl = process.env.OPENAI_BASE_URL;
-  const model = process.env.INFERENCE_TEXT_MODEL || "gpt-4.1-mini";
-  if (!apiKey || !baseUrl) return null;
-
-  const prompt = `你是一个技术翻译官。请用通俗易懂的中文（让不懂技术的人也能看懂）解释下面这个 GitHub 项目是做什么的。
-
-项目名称：${meta.name}
-官方描述：${meta.description ?? "无"}
-编程语言：${meta.language ?? "未知"}
-标签：${meta.topics.join(", ") || "无"}
-
-标签是理解项目的关键线索，请先分析标签含义再下结论。常见的 Go 项目标签映射：
-- alist / aliyunpan / baidupan / clouddrive / nas → 网盘聚合管理
-- 其他标签按实际含义理解
-
-要求：
-- 一句话讲清楚这个项目是做什么的，先自问：标签共同指向什么领域？
-- 不要机翻，要真正理解后用自己的话写
-- 让不懂技术的人也能看懂
-- 控制在 30-60 字`;
-
-  try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
-        temperature: 0.5,
-      }),
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function preprocessReadme(raw: string): string {
+/**
+ * Truncate to at most `maxChars` Unicode code points (not UTF-16 code units),
+ * so that a surrogate pair (emoji) is never split in half.
+ */
+export function preprocessReadme(raw: string, maxChars = 8000): string {
   const lines = raw.split("\n").filter((l) => l.trim());
   const cleaned = lines
     .map((l) => l.replace(/!\[.*?\]\(.*?\)/g, "").trim())
     .filter(Boolean)
     .join("\n");
-  return cleaned.length > 8000 ? cleaned.slice(0, 8000) : cleaned;
-}
-
-export function buildSynthesisPrompt(params: {
-  name: string;
-  description: string | null;
-  stars: number | null;
-  topics: string[] | null;
-  readmeContent: string;
-  /** The bookmaker's original sharing text (e.g. tweet content) */
-  sourceContext: string | null;
-  /** Deterministic category from rules engine */
-  category: string;
-  /** Human-readable tags */
-  tags: string[];
-  /** Agent search tags */
-  agentTags: string[];
-  /** Value score from rules */
-  valueScore: string;
-}): string {
-  let prompt = `请用一句话（30-50 字）说清楚这个项目是什么。只输出这句话，不要别的。
-
-# 项目信息
-名称：${params.name}
-描述：${params.description ?? "无"}
-标签：${params.tags.join("、")}
-类别：${params.category}
-
-`;
-
-  if (params.sourceContext) {
-    prompt += `有人这样分享过它：
-"${params.sourceContext.slice(0, 600)}"
-
-`;
-  }
-
-  prompt += `README 关键内容：
-${params.readmeContent.slice(0, 3000)}
-
-要求：一句话（30-50 字），像朋友推荐好用的工具那样自然。
-注意：项目类别和标签中的英文词（如 skills、cli、agent、react 等）是固定技术术语，不要翻译成中文。
-只输出这句话。`;
-
-  return prompt;
+  // Slice by code point to avoid splitting surrogate pairs (emoji / rare CJK).
+  const codePoints = Array.from(cleaned);
+  return codePoints.length > maxChars
+    ? codePoints.slice(0, maxChars).join("")
+    : cleaned;
 }
 
 /**
- * Determine value score based on stars and other signals.
+ * Build the single AI prompt that produces BOTH the human summary and the
+ * agent dossier in one LLM call. The rule-engine category and tags are fed
+ * in as strong priors so the model reinforces rather than re-derives them.
+ */
+function buildDeepDivePrompt(params: {
+  name: string;
+  description: string | null;
+  language: string | null;
+  stars: number | null;
+  topics: string[];
+  readmeContent: string;
+  category: string;
+  categoryLabel: string;
+  humanTags: string[];
+  agentTags: string[];
+  valueScore: "high" | "mid" | "low";
+  sourceContext: string | null;
+}): string {
+  const sourceBlock = params.sourceContext
+    ? `\n有人这样分享过它（原始分享文，可能是推文）：\n"${params.sourceContext.slice(0, 600)}"\n`
+    : "";
+
+  return `你是一个技术分析专家。分析以下 GitHub 项目，返回纯 JSON（不要 markdown 代码块，不要任何其他文字）。
+
+项目名称：${params.name}
+官方描述：${params.description ?? "无"}
+编程语言：${params.language ?? "未知"}
+Stars：${params.stars ?? "未知"}
+GitHub Topics：${params.topics.join(", ") || "无"}
+${sourceBlock}
+规则引擎预分类（强信号，作为参考，但你可以修正）：
+- 类别：${params.category}（${params.categoryLabel}）
+- 人类标签：${params.humanTags.join(", ") || "无"}
+- Agent 标签：${params.agentTags.join(", ") || "无"}
+
+README 内容：
+${params.readmeContent}
+
+分析要求：
+1. GitHub Topics 是最可靠的分类线索，先看 topics 再看 README。
+2. 常见 topics 映射参考：alist/aliyunpan/baidupan/clouddrive/nas → 云盘管理。
+3. 结合 README 确认核心功能、技术栈、成熟度。
+4. 技术/产品原名（如 skills、cli、react、docker）不要翻译成中文。
+
+请返回以下 JSON（严格 JSON，字段名不可变）：
+{
+  "humanSummary": "30-60字中文通俗简介，让非技术用户也能看懂，不要重复项目名称（卡片标题已显示）",
+  "valueScore": "high | mid | low（项目价值：high=首创/同类最佳/高增长，mid=有用但非突出，low=过时/简单/小众）",
+  "dossier": {
+    "oneLiner": "一句话精准概括项目定位（20字内）",
+    "overview": "200-500字完整项目介绍，面向 AI Agent 阅读：目的、核心功能、架构特点、使用方式",
+    "category": "项目分类（如云盘管理、前端框架、CLI工具、DevOps、数据库等）",
+    "keyFeatures": ["核心功能点，每点10字以内"],
+    "techStack": ["技术栈，如 Go", "Vue.js", "PostgreSQL"],
+    "useCases": ["适用场景"],
+    "alternatives": ["替代品/竞品，项目名即可"],
+    "pros": ["主要优势"],
+    "cons": ["主要局限"],
+    "knowledgeTags": ["5-10个用于搜索的标签"],
+    "maturity": "active | stable | inactive",
+    "confidence": "high | medium | low"
+  }
+}`;
+}
+
+/** Best-effort extraction of a JSON object from an LLM response. */
+function parseJsonFromLLMResponse(response: string): unknown {
+  const trimmed = response.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*\})\s*```/i;
+    const match = trimmed.match(jsonBlockRegex);
+    if (match) {
+      return JSON.parse(match[1]);
+    }
+    // Last resort: grab the first {...} balanced span.
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("No JSON found in LLM response");
+  }
+}
+
+/**
+ * Determine value score based on stars. This is the deterministic fallback
+ * used both as a prior for the AI prompt and to validate the AI's output.
  */
 function determineValueScore(stars: number | null): "high" | "mid" | "low" {
   if (stars === null) return "mid";
   if (stars >= 1000) return "high";
   if (stars >= 100) return "mid";
   return "low";
+}
+
+/**
+ * Build the humanTags / agentTags from rule-engine results + GitHub topics,
+ * WITHOUT an extra LLM call. Returns deduplicated arrays.
+ */
+function buildTagsFromRules(
+  ruleResults: ReturnType<typeof classifyByRules>,
+  ghTopics: string[],
+): { humanTags: string[]; agentTags: string[]; primaryCategory: string } {
+  const topRule = ruleResults[0];
+  const primaryCategory = topRule?.category ?? "other";
+
+  const humanTags: string[] = [];
+  const agentTags: string[] = [];
+  if (topRule && topRule.confidence >= 20) {
+    humanTags.push(primaryCategory);
+    agentTags.push(primaryCategory);
+  }
+  for (const rule of ruleResults) {
+    if (rule.category === primaryCategory) continue;
+    if (rule.confidence >= 20) {
+      humanTags.push(rule.category);
+      agentTags.push(rule.category);
+    }
+  }
+  // GitHub topics are high-quality agent search tags
+  for (const topic of ghTopics) {
+    if (!agentTags.includes(topic)) agentTags.push(topic);
+  }
+  return { humanTags, agentTags, primaryCategory };
 }
 
 /**
@@ -387,9 +473,14 @@ function extractTagsFromText(text: string): string[] {
 }
 
 /**
- * Run a GitHub deep dive analysis inline (no queue/worker needed).
- * Uses rules for classification (deterministic, no AI prompt),
- * then AI only for summary synthesis combining source context + GitHub data.
+ * THE canonical GitHub deep-dive pipeline (rules + a single AI call).
+ *
+ * Replaces the three previously overlapping implementations:
+ *  - inference/classify.ts `classifyGitHubProject` (deleted)
+ *  - workers/githubDeepDiveWorker.ts `runDeepDive` (now a thin wrapper)
+ *  - this file's previous `runGitHubDeepDive` (which skipped the dossier)
+ *
+ * Produces: humanSummary, dossier, tags, agentTags, valueScore, archive flag.
  */
 export async function runGitHubDeepDive(params: {
   bookmarkId: string;
@@ -414,6 +505,7 @@ export async function runGitHubDeepDive(params: {
   let ghTopics = gh.topics ?? [];
   let ghStars = gh.stars;
   let ghDescription = gh.description;
+  let ghLanguage = gh.language;
   if (!ghTopics.length) {
     try {
       const meta = await fetchGitHubRepoMetadata(gh.owner, gh.name);
@@ -421,18 +513,23 @@ export async function runGitHubDeepDive(params: {
         ghTopics = meta.topics;
         ghStars = meta.stars;
         ghDescription = meta.description ?? gh.description;
+        ghLanguage = meta.language ?? gh.language;
         await db
           .update(githubProjects)
           .set({
             topics: meta.topics,
             stars: meta.stars,
             description: meta.description,
+            language: meta.language,
             lastFetchedAt: new Date(),
           })
           .where(eq(githubProjects.bookmarkId, bookmarkId));
       }
-    } catch {
-      /* ignore: projectRecommendations table might not exist yet */
+    } catch (e) {
+      // Metadata refresh is best-effort; record it but keep going with what we have.
+      logger.warn(
+        `[github] Metadata refresh failed for ${gh.fullName}: ${e instanceof Error ? e.message : e}`,
+      );
     }
   }
 
@@ -442,36 +539,17 @@ export async function runGitHubDeepDive(params: {
     description: ghDescription ?? "",
     name: gh.name,
   });
-  const topRule = ruleResults[0];
-  const primaryCategory = topRule?.category ?? "other";
-  const categoryLabel = TAXONOMY[primaryCategory]?.label ?? "其他";
+  const { humanTags, agentTags, primaryCategory } = buildTagsFromRules(
+    ruleResults,
+    ghTopics,
+  );
+  const categoryLabel =
+    TAXONOMY[primaryCategory as keyof typeof TAXONOMY]?.label ?? "其他";
 
-  // Build humanTags from rule results
-  // Use category ID (English) for technical terms that shouldn't be translated
-  const humanTags: string[] = [];
-  const agentTags: string[] = [];
-  if (topRule && topRule.confidence >= 20) {
-    humanTags.push(primaryCategory);
-    agentTags.push(primaryCategory);
-  }
-  for (const rule of ruleResults) {
-    if (rule.category === primaryCategory) continue;
-    if (rule.confidence >= 20) {
-      humanTags.push(rule.category);
-      agentTags.push(rule.category);
-    }
-  }
-  // Add GitHub topics as agentTags for Agent search
-  for (const topic of ghTopics) {
-    if (!agentTags.includes(topic)) {
-      agentTags.push(topic);
-    }
-  }
+  // Value score from stars (deterministic prior)
+  const ruleValueScore = determineValueScore(ghStars);
 
-  // Value score from stars (no AI)
-  const valueScore = determineValueScore(ghStars);
-
-  // ── Step 2: Get source context (bookmaker text) ──
+  // ── Step 2: Get source context (bookmarker text) ──
   let sourceContext: string | null = null;
   try {
     const rec = await db.query.projectRecommendations.findFirst({
@@ -481,8 +559,10 @@ export async function runGitHubDeepDive(params: {
     if (rec?.recommendationContext) {
       sourceContext = rec.recommendationContext;
     }
-  } catch {
-    // projectRecommendations table might not exist yet
+  } catch (e) {
+    logger.warn(
+      `[github] Failed to read projectRecommendations for ${gh.fullName}: ${e instanceof Error ? e.message : e}`,
+    );
   }
 
   // ── Step 3: Get README ──
@@ -490,85 +570,111 @@ export async function runGitHubDeepDive(params: {
   try {
     const readme = await fetchGitHubReadme(gh.owner, gh.name);
     if (readme) readmeContent = preprocessReadme(readme);
-  } catch {
-    /* ignore: README fetch failure */
+  } catch (e) {
+    logger.warn(
+      `[github] README fetch failed for ${gh.fullName}: ${e instanceof Error ? e.message : e}`,
+    );
   }
 
-  // Extract supplementary tags from description + README (deterministic, no AI)
-  const descriptionText = ghDescription ?? "";
+  // Extract supplementary tags from description + README (deterministic)
   const extractedTags = extractTagsFromText(
-    descriptionText + " " + readmeContent,
+    (ghDescription ?? "") + " " + readmeContent,
   );
   for (const tag of extractedTags) {
-    if (!humanTags.includes(tag)) {
-      humanTags.push(tag);
-    }
-    if (!agentTags.includes(tag)) {
-      agentTags.push(tag);
-    }
+    if (!humanTags.includes(tag)) humanTags.push(tag);
+    if (!agentTags.includes(tag)) agentTags.push(tag);
   }
 
-  // ── Step 4: AI synthesis for humanSummary only ──
-  let humanSummary = gh.description ?? "";
-  try {
-    const synthesisPrompt = buildSynthesisPrompt({
-      name: gh.name,
-      description: ghDescription,
-      stars: ghStars,
-      topics: ghTopics,
-      readmeContent,
-      sourceContext,
-      category: primaryCategory,
-      tags: humanTags,
-      agentTags,
-      valueScore,
-    });
+  // ── Step 4: Single AI call — humanSummary + dossier together ──
+  let humanSummary = ghDescription ?? "";
+  let dossier: AgentDossier | null = null;
+  let valueScore: "high" | "mid" | "low" = ruleValueScore;
 
+  try {
     const dbProviderConfig = await db.query.providerConfig.findFirst();
     const inferenceClient = InferenceClientFactory.build({
       apiKey: dbProviderConfig?.apiKey ?? undefined,
       baseURL: dbProviderConfig?.baseUrl ?? undefined,
       textModel: dbProviderConfig?.textModel ?? undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      outputSchema: "plain" as any,
+      outputSchema: "json",
     });
 
     if (inferenceClient) {
-      const result = await inferenceClient.inferFromText(synthesisPrompt, {});
-      const text = result.response.trim();
-      if (text) humanSummary = text;
+      const prompt = buildDeepDivePrompt({
+        name: gh.name,
+        description: ghDescription,
+        language: ghLanguage,
+        stars: ghStars,
+        topics: ghTopics,
+        readmeContent,
+        category: primaryCategory,
+        categoryLabel,
+        humanTags,
+        agentTags,
+        valueScore: ruleValueScore,
+        sourceContext,
+      });
+
+      const result = await inferenceClient.inferFromText(prompt, {
+        // Force JSON object mode; we parse + validate ourselves below.
+        schema: null,
+      });
+
+      const parsed = parseJsonFromLLMResponse(result.response) as {
+        humanSummary?: string;
+        valueScore?: string;
+        dossier?: AgentDossier;
+      };
+
+      if (parsed.humanSummary && typeof parsed.humanSummary === "string") {
+        humanSummary = parsed.humanSummary.trim();
+      }
+      if (
+        parsed.valueScore === "high" ||
+        parsed.valueScore === "mid" ||
+        parsed.valueScore === "low"
+      ) {
+        valueScore = parsed.valueScore;
+      }
+      if (parsed.dossier && parsed.dossier.oneLiner) {
+        dossier = parsed.dossier;
+      }
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (e: any) {
-    // AI failed — fall back to GitHub description
+  } catch (e) {
+    // AI failed — fall back to GitHub description + rule-based tags.
     logger.warn(
-      `[github] AI synthesis failed for ${gh.fullName}: ${e.message ?? e}`,
+      `[github] AI deep dive failed for ${gh.fullName}: ${e instanceof Error ? e.message : e}`,
     );
     humanSummary = ghDescription ?? `${gh.name} 是一个 ${categoryLabel} 类项目`;
   }
 
-  // ── Step 5: Archive logic ──
+  // ── Step 5: Archive logic (unified) ──
+  // Low value (either AI-scored or rule-based stars<100) → archive.
   let archived = false;
   let archiveReason: string | null = null;
   if (valueScore === "low") {
     archived = true;
-    archiveReason = "低价值（stars<100），自动归档";
+    archiveReason = "低价值项目（stars<100 或 AI 评分 low），自动归档";
   }
 
-  // ── Step 6: Save results ──
+  // ── Step 6: Persist ──
   await db
     .update(githubProjects)
     .set({
       tags: humanTags.length > 0 ? humanTags : undefined,
       agentTags: agentTags.length > 0 ? agentTags : null,
       humanSummary: humanSummary || undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      valueScore: valueScore as any,
+      agentDossier: dossier,
+      valueScore: valueScore as "high" | "mid" | "low",
       archived,
       archiveReason,
       aiStatus: "completed",
     })
     .where(eq(githubProjects.bookmarkId, bookmarkId));
+
+  logger.info(
+    `[github] Deep dive completed for ${gh.fullName}: score=${valueScore}, archived=${archived}, dossier=${dossier ? "yes" : "no"}`,
+  );
 
   return { success: true };
 }

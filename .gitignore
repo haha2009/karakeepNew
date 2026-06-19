@@ -82,3 +82,15 @@ debug-*.js
 .codex
 .claude/worktrees
 jean.json
+
+# Backup files (never commit; clean before every commit)
+*.bak
+*.bak2
+*.backup
+*.new
+*.working
+*.template
+
+# Local tool state (not part of the project)
+.planner/
+.superpowers/

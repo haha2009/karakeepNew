@@ -11,6 +11,7 @@ import { useTRPC } from "@karakeep/shared-react/trpc";
 import { parseSearchQuery } from "@karakeep/shared/searchQueryParser";
 import { ZBookmarkList } from "@karakeep/shared/types/lists";
 
+import GitHubListAiButton from "./GitHubListAiButton";
 import QueryExplainerTooltip from "../search/QueryExplainerTooltip";
 import { ListOptions } from "./ListOptions";
 import {
@@ -100,6 +101,12 @@ export default function ListHeader({
           </div>
         </div>
       </div>
+      {/* Show AI batch button only for GitHub list */}
+      {list.name === "GitHub" && (
+        <div className="flex shrink-0 items-center">
+          <GitHubListAiButton />
+        </div>
+      )}
       <div className="flex shrink-0 items-center">
         <ListOptions list={list}>
           <Button variant="ghost">

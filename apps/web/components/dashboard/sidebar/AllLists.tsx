@@ -109,10 +109,17 @@ function DroppableListSidebarItem({
   const { dropHighlight, onDragOver, onDragEnter, onDragLeave, onDrop } =
     useDropTarget(node.item.id, node.item.name);
 
+  // Server/client hydration fix: defer children check to after mount
+  // to avoid conditional rendering mismatch during hydration
+  const [hasChildren, setHasChildren] = useState(false);
+  useEffect(() => {
+    setHasChildren(node.children.length > 0);
+  }, [node.children.length]);
+
   return (
     <SidebarItem
       collapseButton={
-        node.children.length > 0 ? (
+        hasChildren ? (
           <CollapsibleTriggerChevron className="size-4" open={open} />
         ) : (
           <span className="size-4" />
@@ -183,9 +190,9 @@ export default function AllLists({
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   // Fetch live lists data
-  const { data: listsData } = useBookmarkLists(undefined, {
-    initialData: { lists: initialData.lists },
-  });
+  // Data is pre-populated via HydrationBoundary from the server layout;
+  // initialData prop serves as a fallback if the cache is empty (e.g. HMR).
+  const { data: listsData } = useBookmarkLists(undefined);
   const lists = augmentBookmarkListsWithInitialData(
     listsData,
     initialData.lists,

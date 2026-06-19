@@ -7,22 +7,13 @@ import {
   extractGitHubRepo,
   fetchGitHubOGImage,
   fetchGitHubRepoMetadata,
-  runGitHubDeepDive,
+  GitHubDeepDiveQueue,
 } from "@karakeep/shared-server";
-import { zGitHubProjectSchema } from "@karakeep/shared/types/bookmarks";
+import { zGitHubProjectFullSchema } from "@karakeep/shared/types/bookmarks";
 
 import { createScopedAuthedProcedure, router } from "../index";
 
 const githubProcedure = createScopedAuthedProcedure("bookmarks");
-
-const zGitHubProjectFullSchema = zGitHubProjectSchema.extend({
-  id: z.string(),
-  userId: z.string(),
-  bookmarkId: z.string().nullable(),
-  lastFetchedAt: z.date().nullable(),
-  createdAt: z.date(),
-  modifiedAt: z.date().nullable(),
-});
 
 function mapProject(p: typeof githubProjects.$inferSelect) {
   return {
@@ -198,11 +189,17 @@ export const githubAppRouter = router({
         })
         .where(eq(bookmarkLinks.id, input.bookmarkId));
 
-      // Run deep dive analysis inline (metadata is already updated above)
-      await runGitHubDeepDive({
-        bookmarkId: input.bookmarkId,
-        db: ctx.db,
-      }).catch((e) => console.error("[github] Deep dive failed:", e));
+      // Enqueue deep-dive analysis instead of running it inline.
+      // The worker runs rules + a single AI call and writes results back.
+      await GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId }).catch(
+        (e) => console.error("[github] Failed to enqueue deep dive:", e),
+      );
+
+      // Reset aiStatus so the UI shows "pending" while the worker runs.
+      await ctx.db
+        .update(githubProjects)
+        .set({ aiStatus: "pending" })
+        .where(eq(githubProjects.bookmarkId, input.bookmarkId));
 
       const project = await ctx.db.query.githubProjects.findFirst({
         where: eq(githubProjects.bookmarkId, input.bookmarkId),
@@ -223,15 +220,9 @@ export const githubAppRouter = router({
       )
         return;
 
-      // Run the deep dive analysis INLINE (no queue/worker needed)
-      const result = await runGitHubDeepDive({
-        bookmarkId: input.bookmarkId,
-        db: ctx.db,
-      });
-
-      if (!result.success) {
-        console.error("[github] Deep dive failed:", result.error);
-      }
+      // Enqueue the deep-dive job instead of running inline to avoid
+      // blocking the HTTP request with LLM calls (typically 5-15s).
+      await GitHubDeepDiveQueue.enqueue({ bookmarkId: input.bookmarkId });
     }),
 
   queueDepth: githubProcedure
@@ -321,6 +312,80 @@ export const githubAppRouter = router({
           projects.length > 0 ? Math.round(totalStars / projects.length) : 0,
       };
     }),
+
+  getUnprocessed: githubProcedure
+    .output(
+      z.object({
+        pending: z.number(),
+        unprocessed: z.number(),
+        completed: z.number(),
+        failed: z.number(),
+        total: z.number(),
+        projectIds: z.array(z.string()),
+      }),
+    )
+    .query(async ({ ctx }) => {
+      const all = await ctx.db
+        .select({
+          id: githubProjects.id,
+          bookmarkId: githubProjects.bookmarkId,
+          aiStatus: githubProjects.aiStatus,
+        })
+        .from(githubProjects)
+        .where(eq(githubProjects.userId, ctx.user.id));
+
+      const pending = all.filter((p) => p.aiStatus === "pending").length;
+      const completed = all.filter((p) => p.aiStatus === "completed").length;
+      const failed = all.filter((p) => p.aiStatus === "failed").length;
+      const unprocessedItems = all.filter(
+        (p) => p.aiStatus !== "completed" && p.aiStatus !== "pending",
+      );
+
+      const bookmarkIds = unprocessedItems
+        .map((p) => p.bookmarkId)
+        .filter((id): id is string => id !== null);
+
+      return {
+        pending,
+        unprocessed: bookmarkIds.length,
+        completed,
+        failed,
+        total: all.length,
+        projectIds: bookmarkIds,
+      };
+    }),
+
+  processAll: githubProcedure.mutation(async ({ ctx }) => {
+    const unprocessed = await ctx.db
+      .select({
+        id: githubProjects.id,
+        bookmarkId: githubProjects.bookmarkId,
+      })
+      .from(githubProjects)
+      .where(
+        and(
+          eq(githubProjects.userId, ctx.user.id),
+          sql`${githubProjects.aiStatus} NOT IN ('completed', 'pending')`,
+        ),
+      );
+
+    // Enqueue all unprocessed projects for the deep-dive worker instead
+    // of running LLM calls inline in this HTTP request (which could take
+    // minutes for large batches and cause timeouts).
+    let enqueued = 0;
+    await Promise.allSettled(
+      unprocessed.map(async (p) => {
+        if (!p.bookmarkId) return;
+        await GitHubDeepDiveQueue.enqueue({ bookmarkId: p.bookmarkId });
+        enqueued++;
+      }),
+    );
+
+    return {
+      total: unprocessed.length,
+      enqueued,
+    };
+  }),
 
   recommend: githubProcedure
     .input(

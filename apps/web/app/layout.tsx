@@ -11,7 +11,7 @@ import React from "react";
 import Providers from "@/lib/providers";
 import { getUserLocalSettings } from "@/lib/userLocalSettings/userLocalSettings";
 import { getServerAuthSession } from "@/server/auth";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import Devtools from "@/components/Devtools";
 import { Toaster } from "sonner";
 
 import { clientConfig } from "@karakeep/shared/config";
@@ -66,7 +66,7 @@ export default async function RootLayout({
             userLocalSettings={await getUserLocalSettings()}
           >
             {children}
-            <ReactQueryDevtools initialIsOpen={false} />
+            <Devtools />
           </Providers>
           <Toaster />
         </NuqsAdapter>
