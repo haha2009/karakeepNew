@@ -1,3 +1,7 @@
+# Pre-commit: 清理检查 → typecheck → lint → format → open-api 检查
+# 不可跳过：工作区不干净则阻止提交
+
+bash scripts/clean-workspace.sh --check
 pnpm preflight
 pnpm exec sherif
 pnpm run --filter @karakeep/open-api check

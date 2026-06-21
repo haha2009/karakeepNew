@@ -52,3 +52,12 @@
 - Docker Compose 分 3 个容器：aio（web+workers）、chrome、meilisearch
 - 部署流程：`pnpm typecheck && pnpm lint:fix` → 提交推送 → CI 构建 → `bash scripts/deploy.sh`
 - 详细部署信息见 `docs/internal/deployment.md`
+
+### 工作区清理（每次 commit 前必须执行）
+
+- 自动清理脚本：`bash scripts/clean-workspace.sh`
+- 预览模式：`bash scripts/clean-workspace.sh --dry-run`（默认安全）
+- 执行清理：`bash scripts/clean-workspace.sh --force`（交互式确认）
+- CI 检查：`bash scripts/clean-workspace.sh --check`（不干净则 exit 1）
+- 安全保证：绝不删除 git 跟踪文件、白名单文件、受管目录中的正规产物
+- 详细规则见 `AGENTS.md`（单点真理），`CLAUDE.md` 仅做快速入口
