@@ -15,6 +15,7 @@ import {
 import { zhCN } from "date-fns/locale";
 import {
   ArrowDownToLine,
+  BarChart3,
   Bookmark,
   CalendarDays,
   ChevronLeft,
@@ -22,8 +23,10 @@ import {
   Flame,
   Link2,
   Library,
+  Tags,
   Timer,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -40,6 +43,10 @@ export default function BookmarkStatsPage() {
 
   const { data: stats, isLoading: statsLoading } = useQuery(
     api.bookmarks.getStats.queryOptions(),
+  );
+
+  const { data: tagsData } = useQuery(
+    api.tags.list.queryOptions({ limit: 5, sortBy: "usage" }),
   );
 
   const {
@@ -150,6 +157,18 @@ export default function BookmarkStatsPage() {
             value: stats?.usageDays ?? 0,
             unit: "天",
             icon: Flame,
+          },
+          {
+            label: "日均采集",
+            value: stats?.avgPerDay ?? 0,
+            unit: "条/天",
+            icon: BarChart3,
+          },
+          {
+            label: "连续天数",
+            value: stats?.longestStreak ?? 0,
+            unit: "天",
+            icon: Zap,
           },
         ].map((card) => (
           <div
@@ -340,6 +359,11 @@ export default function BookmarkStatsPage() {
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
                   <Link2 className="size-4 text-foreground" />
                   热门域名
+                  {stats?.domainDiversity !== undefined && (
+                    <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {stats.domainDiversity} 个域名
+                    </span>
+                  )}
                 </h3>
                 <div className="space-y-2">
                   {topDomains.map(({ domain, count }, i) => (
@@ -356,6 +380,45 @@ export default function BookmarkStatsPage() {
                       <span className="text-muted-foreground">{count}</span>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {(tagsData?.tags?.length ?? 0) > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+                  <Tags className="size-4 text-foreground" />
+                  标签统计
+                </h3>
+                <div className="space-y-2">
+                  {tagsData!.tags.map((tag) => {
+                    const maxCount = tagsData!.tags[0]!.numBookmarks;
+                    const pct =
+                      maxCount > 0
+                        ? Math.round((tag.numBookmarks / maxCount) * 100)
+                        : 0;
+                    return (
+                      <div
+                        key={tag.id}
+                        className="flex items-center gap-2.5 text-xs"
+                      >
+                        <span className="flex-1 truncate font-medium">
+                          {tag.name}
+                        </span>
+                        <div className="h-2 w-16 overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className="h-full rounded-full bg-foreground/70"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="w-5 text-right text-muted-foreground">
+                          {tag.numBookmarks}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

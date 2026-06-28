@@ -13,6 +13,7 @@ import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 
 import type { APICallerType, CustomTestContext } from "../testUtils";
 import { defaultBeforeEach, getApiKeyCallerForPlainKey } from "../testUtils";
+import { calculateLongestStreak, extractDomain } from "./bookmarks";
 
 vi.mock("@karakeep/shared-server", async (original) => {
   const mod = (await original()) as typeof import("@karakeep/shared-server");
@@ -1534,5 +1535,99 @@ describe("Bookmark Routes", () => {
       });
       expect(result.bookmarkId).toBeNull();
     });
+  });
+});
+
+describe("extractDomain", () => {
+  test("extracts hostname without www prefix", () => {
+    expect(extractDomain("https://www.example.com/page")).toBe("example.com");
+  });
+
+  test("extracts hostname without www", () => {
+    expect(extractDomain("https://example.com/page?q=1")).toBe("example.com");
+  });
+
+  test("handles subdomains", () => {
+    expect(extractDomain("https://blog.example.com")).toBe("blog.example.com");
+  });
+
+  test("handles URL without protocol", () => {
+    expect(extractDomain("example.com/page")).toBe("example.com");
+  });
+
+  test("returns empty string for invalid URL", () => {
+    expect(extractDomain("")).toBe("");
+  });
+
+  test("returns empty string for malformed URL", () => {
+    expect(extractDomain("not a url")).toBe("");
+  });
+});
+
+describe("calculateLongestStreak", () => {
+  test("returns 0 for empty data", () => {
+    expect(calculateLongestStreak([])).toBe(0);
+  });
+
+  test("returns 0 when no days have bookmarks", () => {
+    const data = [
+      { date: "2024-01-01", count: 0 },
+      { date: "2024-01-02", count: 0 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(0);
+  });
+
+  test("returns 1 for a single active day", () => {
+    const data = [{ date: "2024-01-01", count: 3 }];
+    expect(calculateLongestStreak(data)).toBe(1);
+  });
+
+  test("counts consecutive active days as a streak", () => {
+    const data = [
+      { date: "2024-01-01", count: 1 },
+      { date: "2024-01-02", count: 2 },
+      { date: "2024-01-03", count: 1 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(3);
+  });
+
+  test("resets streak when a day is skipped", () => {
+    const data = [
+      { date: "2024-01-01", count: 1 },
+      { date: "2024-01-02", count: 1 },
+      { date: "2024-01-04", count: 1 },
+      { date: "2024-01-05", count: 1 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(2);
+  });
+
+  test("ignores days with zero count", () => {
+    const data = [
+      { date: "2024-01-01", count: 0 },
+      { date: "2024-01-02", count: 0 },
+      { date: "2024-01-03", count: 5 },
+      { date: "2024-01-04", count: 3 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(2);
+  });
+
+  test("handles unsorted input data", () => {
+    const data = [
+      { date: "2024-01-03", count: 1 },
+      { date: "2024-01-01", count: 1 },
+      { date: "2024-01-02", count: 1 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(3);
+  });
+
+  test("tracks longest streak across multiple runs", () => {
+    const data = [
+      { date: "2024-01-01", count: 1 },
+      { date: "2024-01-02", count: 1 },
+      { date: "2024-01-05", count: 1 },
+      { date: "2024-01-06", count: 1 },
+      { date: "2024-01-07", count: 1 },
+    ];
+    expect(calculateLongestStreak(data)).toBe(3);
   });
 });

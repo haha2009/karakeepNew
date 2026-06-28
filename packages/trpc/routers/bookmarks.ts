@@ -1568,7 +1568,7 @@ Author: ${bookmark.author ?? ""}
 
 // ── Pure Functions ──
 
-function extractDomain(url: string): string {
+export function extractDomain(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
@@ -1576,7 +1576,7 @@ function extractDomain(url: string): string {
   }
 }
 
-function calculateLongestStreak(
+export function calculateLongestStreak(
   heatmapData: { date: string; count: number }[],
 ): number {
   if (heatmapData.length === 0) return 0;
