@@ -286,6 +286,22 @@ export const zBookmarkStatsSchema = z.object({
   usageDays: z.number().int().nonnegative(),
   tagCount: z.number().int().nonnegative().optional().default(0),
   heatmapData: z.array(zHeatmapDaySchema),
+  favouritedCount: z.number().int().nonnegative(),
+  currentMonthCount: z.number().int().nonnegative(),
+  avgPerDay: z.number().nonnegative(),
+  longestStreak: z.number().int().nonnegative(),
+  typeDistribution: z.object({
+    link: z.number().int().nonnegative(),
+    text: z.number().int().nonnegative(),
+    asset: z.number().int().nonnegative(),
+  }),
+  topDomains: z.array(
+    z.object({
+      domain: z.string(),
+      count: z.number().int().nonnegative(),
+    }),
+  ),
+  domainDiversity: z.number().int().nonnegative(),
 });
 export type ZBookmarkStats = z.infer<typeof zBookmarkStatsSchema>;
 

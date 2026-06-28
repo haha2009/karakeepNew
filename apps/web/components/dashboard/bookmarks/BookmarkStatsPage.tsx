@@ -33,15 +33,6 @@ import BookmarkListItem from "./BookmarkListItem";
 import AddDropdownMenu from "./AddDropdownMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
-
-function getDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
 
 export default function BookmarkStatsPage() {
   const api = useTRPC();
@@ -76,12 +67,6 @@ export default function BookmarkStatsPage() {
     [data],
   );
 
-  // Month-filtered for calendar
-  const monthBookmarks = useMemo(
-    () => allBookmarks.filter((b) => isSameMonth(b.createdAt, currentMonth)),
-    [allBookmarks, currentMonth],
-  );
-
   // Calendar
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -98,32 +83,21 @@ export default function BookmarkStatsPage() {
 
   const bookmarksPerDay = useMemo(() => {
     const map = new Map<string, number>();
-    for (const b of monthBookmarks) {
-      const key = format(b.createdAt, "yyyy-MM-dd");
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return map;
-  }, [monthBookmarks]);
-
-  // Insights
-  const typeDistribution = useMemo(() => {
-    const counts = { link: 0, text: 0, asset: 0, unknown: 0 };
-    for (const b of allBookmarks) counts[b.content.type]++;
-    return counts;
-  }, [allBookmarks]);
-
-  const topDomains = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const b of allBookmarks) {
-      if (b.content.type === BookmarkTypes.LINK) {
-        const domain = getDomain(b.content.url);
-        if (domain) counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    for (const d of stats?.heatmapData ?? []) {
+      if (d.date.startsWith(format(currentMonth, "yyyy-MM"))) {
+        map.set(d.date, d.count);
       }
     }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-  }, [allBookmarks]);
+    return map;
+  }, [stats?.heatmapData, currentMonth]);
+
+  // Insights
+  const typeDistribution = stats?.typeDistribution ?? {
+    link: 0,
+    text: 0,
+    asset: 0,
+  };
+  const topDomains = stats?.topDomains ?? [];
 
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => {
@@ -163,7 +137,7 @@ export default function BookmarkStatsPage() {
           },
           {
             label: "收藏数",
-            value: monthBookmarks.length,
+            value: stats?.favouritedCount ?? 0,
             icon: CalendarDays,
           },
           {
@@ -268,7 +242,7 @@ export default function BookmarkStatsPage() {
             </div>
 
             <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground/60">
-              <span>当月 {monthBookmarks.length} 条</span>
+              <span>当月 {stats?.currentMonthCount ?? 0} 条</span>
               <div className="flex items-center gap-1">
                 <span>少</span>
                 <div className="size-2 rounded-sm bg-muted/30" />
@@ -330,10 +304,8 @@ export default function BookmarkStatsPage() {
                   },
                 ].map((item) => {
                   const count = typeDistribution[item.type];
-                  const pct =
-                    allBookmarks.length > 0
-                      ? Math.round((count / allBookmarks.length) * 100)
-                      : 0;
+                  const total = stats?.totalCount ?? 0;
+                  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                   return (
                     <div key={item.type} className="flex items-center gap-3">
                       <div
@@ -370,7 +342,7 @@ export default function BookmarkStatsPage() {
                   热门域名
                 </h3>
                 <div className="space-y-2">
-                  {topDomains.map(([domain, count], i) => (
+                  {topDomains.map(({ domain, count }, i) => (
                     <div
                       key={domain}
                       className="flex items-center gap-2.5 text-xs"

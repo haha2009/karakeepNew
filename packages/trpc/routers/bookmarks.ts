@@ -2,10 +2,7 @@ import { experimental_trpcMiddleware, TRPCError } from "@trpc/server";
 import { and, eq, gt, inArray, like, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import type {
-  ZBookmarkContent,
-  ZHeatmapDay,
-} from "@karakeep/shared/types/bookmarks";
+import type { ZBookmarkContent } from "@karakeep/shared/types/bookmarks";
 import type { ZBookmarkTags } from "@karakeep/shared/types/tags";
 import {
   assets,
@@ -1043,88 +1040,150 @@ export const bookmarksAppRouter = router({
     .output(zBookmarkStatsSchema)
     .query(async ({ ctx }) => {
       const userId = ctx.user.id;
-
-      // Total count
-      const totalResult = await ctx.db
-        .select({ count: sql<number>`count(*)` })
-        .from(bookmarks)
-        .where(eq(bookmarks.userId, userId));
-      const totalCount = totalResult[0]?.count ?? 0;
-
-      // Today count (UTC midnight to now)
       const now = new Date();
       const startOfToday = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
       );
-      const todayResult = await ctx.db
-        .select({ count: sql<number>`count(*)` })
-        .from(bookmarks)
-        .where(
-          and(
-            eq(bookmarks.userId, userId),
-            gt(bookmarks.createdAt, startOfToday),
-          ),
-        );
-      const todayCount = todayResult[0]?.count ?? 0;
-
-      // Usage days: count distinct dates from createdAt
-      const usageDaysResult = await ctx.db
-        .select({
-          day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
-        })
-        .from(bookmarks)
-        .where(eq(bookmarks.userId, userId))
-        .groupBy(
-          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
-        );
-      const usageDays = usageDaysResult.length;
-
-      // Heatmap data: last 6 months of daily counts
+      const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setUTCDate(1);
       sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
       sixMonthsAgo.setUTCHours(0, 0, 0, 0);
 
-      const heatmapResult = await ctx.db
-        .select({
-          day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
-          count: sql<number>`count(*)`,
-        })
-        .from(bookmarks)
-        .where(
-          and(
-            eq(bookmarks.userId, userId),
-            gt(bookmarks.createdAt, sixMonthsAgo),
-          ),
-        )
-        .groupBy(
-          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
-        )
-        .orderBy(
-          sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
-        );
+      const [counter, typeDist, domainTop, domainAll, heatmap, tagCountResult] =
+        await Promise.all([
+          // Query A: 基础计数（单次表扫描）
+          ctx.db
+            .select({
+              totalCount: sql<number>`COUNT(*)`,
+              todayCount: sql<number>`SUM(CASE WHEN ${bookmarks.createdAt} > ${startOfToday} THEN 1 ELSE 0 END)`,
+              favouritedCount: sql<number>`SUM(CASE WHEN ${bookmarks.favourited} = 1 THEN 1 ELSE 0 END)`,
+              currentMonthCount: sql<number>`SUM(CASE WHEN strftime('%Y-%m', ${bookmarks.createdAt} / 1000, 'unixepoch') = ${currentMonth} THEN 1 ELSE 0 END)`,
+              usageDays: sql<number>`COUNT(DISTINCT strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch'))`,
+            })
+            .from(bookmarks)
+            .where(eq(bookmarks.userId, userId)),
 
-      const heatmapData: ZHeatmapDay[] = heatmapResult.map((r) => ({
-        date: r.day,
-        count: r.count,
-      }));
+          // Query B: 类型分布
+          ctx.db
+            .select({
+              type: bookmarks.type,
+              count: sql<number>`COUNT(*)`,
+            })
+            .from(bookmarks)
+            .where(eq(bookmarks.userId, userId))
+            .groupBy(bookmarks.type),
 
-      // Tag count: number of distinct tags used by this user
-      const tagCountResult = await ctx.db
-        .select({
-          count: sql<number>`count(distinct ${tagsOnBookmarks.tagId})`,
-        })
-        .from(tagsOnBookmarks)
-        .innerJoin(bookmarks, eq(bookmarks.id, tagsOnBookmarks.bookmarkId))
-        .where(eq(bookmarks.userId, userId));
+          // Query C1: 域名 Top5 URL
+          ctx.db
+            .select({
+              url: bookmarkLinks.url,
+              count: sql<number>`COUNT(*)`,
+            })
+            .from(bookmarkLinks)
+            .innerJoin(bookmarks, eq(bookmarks.id, bookmarkLinks.id))
+            .where(eq(bookmarks.userId, userId))
+            .groupBy(bookmarkLinks.url)
+            .orderBy(sql`COUNT(*) DESC`)
+            .limit(5),
+
+          // Query C2: 所有 URL（用于域名多样性）
+          ctx.db
+            .select({ url: bookmarkLinks.url })
+            .from(bookmarkLinks)
+            .innerJoin(bookmarks, eq(bookmarks.id, bookmarkLinks.id))
+            .where(eq(bookmarks.userId, userId)),
+
+          // Query D: 热力图
+          ctx.db
+            .select({
+              day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+              count: sql<number>`COUNT(*)`,
+            })
+            .from(bookmarks)
+            .where(
+              and(
+                eq(bookmarks.userId, userId),
+                gt(bookmarks.createdAt, sixMonthsAgo),
+              ),
+            )
+            .groupBy(
+              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+            )
+            .orderBy(
+              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+            ),
+
+          // Query E: 标签计数
+          ctx.db
+            .select({
+              count: sql<number>`count(distinct ${tagsOnBookmarks.tagId})`,
+            })
+            .from(tagsOnBookmarks)
+            .innerJoin(bookmarks, eq(bookmarks.id, tagsOnBookmarks.bookmarkId))
+            .where(eq(bookmarks.userId, userId)),
+        ]);
+
+      const c = counter[0] ?? {
+        totalCount: 0,
+        todayCount: 0,
+        favouritedCount: 0,
+        currentMonthCount: 0,
+        usageDays: 0,
+      };
+
+      // 类型分布
+      const typeDistribution = { link: 0, text: 0, asset: 0 };
+      for (const row of typeDist) {
+        if (row.type in typeDistribution) {
+          typeDistribution[row.type as keyof typeof typeDistribution] =
+            row.count;
+        }
+      }
+
+      // 域名: JS 层解析
+      const domainCounts = new Map<string, number>();
+      for (const row of domainTop) {
+        const domain = extractDomain(row.url ?? "");
+        if (domain) {
+          domainCounts.set(domain, (domainCounts.get(domain) ?? 0) + row.count);
+        }
+      }
+      const topDomains = Array.from(domainCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([domain, count]) => ({ domain, count }));
+
+      // 域名多样性
+      const uniqueDomains = new Set(
+        domainAll.map((r) => extractDomain(r.url ?? "")),
+      );
+      const domainDiversity = uniqueDomains.size;
+
+      // 热力图
+      const heatmapData = heatmap.map((h) => ({ date: h.day, count: h.count }));
+
+      // 派生计算
+      const avgPerDay =
+        c.usageDays > 0
+          ? Math.round((c.totalCount / c.usageDays) * 10) / 10
+          : 0;
+      const longestStreak = calculateLongestStreak(heatmapData);
       const tagCount = tagCountResult[0]?.count ?? 0;
 
       return {
-        todayCount,
-        totalCount,
-        usageDays,
+        todayCount: c.todayCount,
+        totalCount: c.totalCount,
+        usageDays: c.usageDays,
         tagCount,
         heatmapData,
+        favouritedCount: c.favouritedCount,
+        currentMonthCount: c.currentMonthCount,
+        avgPerDay,
+        longestStreak,
+        typeDistribution,
+        topDomains,
+        domainDiversity,
       };
     }),
 
@@ -1506,3 +1565,48 @@ Author: ${bookmark.author ?? ""}
       };
     }),
 });
+
+// ── Pure Functions ──
+
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function calculateLongestStreak(
+  heatmapData: { date: string; count: number }[],
+): number {
+  if (heatmapData.length === 0) return 0;
+
+  const activeDays = new Set(
+    heatmapData.filter((d) => d.count > 0).map((d) => d.date),
+  );
+
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let prevDate: Date | null = null;
+
+  for (const day of Array.from(activeDays).sort()) {
+    const date = new Date(day + "T00:00:00Z");
+    if (prevDate) {
+      const diffDays = Math.round(
+        (date.getTime() - prevDate.getTime()) / 86400000,
+      );
+      if (diffDays === 1) {
+        currentStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, currentStreak);
+        currentStreak = 1;
+      }
+    } else {
+      currentStreak = 1;
+    }
+    prevDate = date;
+  }
+  longestStreak = Math.max(longestStreak, currentStreak);
+
+  return longestStreak;
+}
