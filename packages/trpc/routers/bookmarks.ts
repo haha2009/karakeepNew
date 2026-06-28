@@ -1056,7 +1056,7 @@ export const bookmarksAppRouter = router({
           ctx.db
             .select({
               totalCount: sql<number>`COUNT(*)`,
-              todayCount: sql<number>`SUM(CASE WHEN ${bookmarks.createdAt} > ${startOfToday} THEN 1 ELSE 0 END)`,
+              todayCount: sql<number>`SUM(CASE WHEN ${gt(bookmarks.createdAt, startOfToday)} THEN 1 ELSE 0 END)`,
               favouritedCount: sql<number>`SUM(CASE WHEN ${bookmarks.favourited} = 1 THEN 1 ELSE 0 END)`,
               currentMonthCount: sql<number>`SUM(CASE WHEN strftime('%Y-%m', ${bookmarks.createdAt} / 1000, 'unixepoch') = ${currentMonth} THEN 1 ELSE 0 END)`,
               usageDays: sql<number>`COUNT(DISTINCT strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch'))`,
@@ -1085,7 +1085,7 @@ export const bookmarksAppRouter = router({
             .where(eq(bookmarks.userId, userId))
             .groupBy(bookmarkLinks.url)
             .orderBy(sql`COUNT(*) DESC`)
-            .limit(5),
+            .limit(3),
 
           // Query C2: 所有 URL（用于域名多样性）
           ctx.db
