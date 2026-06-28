@@ -54,7 +54,10 @@ export default function TextCard({
                     alt="card banner"
                     fill={true}
                     unoptimized
-                    className={cn("flex-1", className)}
+                    className={cn(
+                      "flex-1 transition-transform duration-300 group-hover:scale-[1.03]",
+                      className,
+                    )}
                     src={getAssetUrl(banner.id)}
                   />
                 </Link>

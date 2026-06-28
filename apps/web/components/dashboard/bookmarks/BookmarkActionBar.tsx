@@ -14,13 +14,16 @@ export default function BookmarkActionBar({
   bookmark: ZBookmark;
 }) {
   return (
-    <div className="flex text-gray-500">
+    <div className="flex text-muted-foreground">
       {bookmark.favourited && (
         <FavouritedActionIcon className="m-1 size-8 rounded p-1" favourited />
       )}
       <Link
         href={`/dashboard/preview/${bookmark.id}`}
-        className={cn(buttonVariants({ variant: "ghost" }), "px-2")}
+        className={cn(
+          buttonVariants({ variant: "ghost" }),
+          "px-2 transition-all duration-200 hover:scale-110 active:scale-95",
+        )}
       >
         <Maximize2 size={16} />
       </Link>

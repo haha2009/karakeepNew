@@ -29,7 +29,10 @@ function AssetImage({
             src={getAssetUrl(bookmarkedAsset.assetId)}
             fill={true}
             unoptimized
-            className={className}
+            className={cn(
+              className,
+              "transition-transform duration-300 group-hover:scale-[1.03]",
+            )}
           />
         </Link>
       );

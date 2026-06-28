@@ -284,6 +284,7 @@ export const zBookmarkStatsSchema = z.object({
   todayCount: z.number().int().nonnegative(),
   totalCount: z.number().int().nonnegative(),
   usageDays: z.number().int().nonnegative(),
+  tagCount: z.number().int().nonnegative().optional().default(0),
   heatmapData: z.array(zHeatmapDaySchema),
 });
 export type ZBookmarkStats = z.infer<typeof zBookmarkStatsSchema>;

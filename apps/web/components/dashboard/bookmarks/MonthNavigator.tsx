@@ -37,6 +37,7 @@ export default function MonthNavigator({
       <Button
         variant="ghost"
         size="icon"
+        className="transition-all duration-200 hover:scale-110 active:scale-95"
         onClick={() => onMonthChange(prevMonth)}
         disabled={!canGoPrev}
       >
@@ -48,6 +49,7 @@ export default function MonthNavigator({
       <Button
         variant="ghost"
         size="icon"
+        className="transition-all duration-200 hover:scale-110 active:scale-95"
         onClick={() => onMonthChange(nextMonth)}
         disabled={!canGoNext}
       >

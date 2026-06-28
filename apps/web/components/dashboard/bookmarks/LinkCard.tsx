@@ -81,7 +81,10 @@ function LinkImage({
   const imgComponent = (url: string, unoptimized: boolean) => (
     <Image
       unoptimized={unoptimized}
-      className={className}
+      className={cn(
+        className,
+        "transition-transform duration-300 group-hover:scale-[1.03]",
+      )}
       alt="card banner"
       fill={true}
       src={url}

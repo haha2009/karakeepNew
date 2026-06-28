@@ -1109,10 +1109,21 @@ export const bookmarksAppRouter = router({
         count: r.count,
       }));
 
+      // Tag count: number of distinct tags used by this user
+      const tagCountResult = await ctx.db
+        .select({
+          count: sql<number>`count(distinct ${tagsOnBookmarks.tagId})`,
+        })
+        .from(tagsOnBookmarks)
+        .innerJoin(bookmarks, eq(bookmarks.id, tagsOnBookmarks.bookmarkId))
+        .where(eq(bookmarks.userId, userId));
+      const tagCount = tagCountResult[0]?.count ?? 0;
+
       return {
         todayCount,
         totalCount,
         usageDays,
+        tagCount,
         heatmapData,
       };
     }),

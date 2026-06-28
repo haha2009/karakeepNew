@@ -69,7 +69,7 @@ function BottomRow({
 }) {
   if (hideCreatedAt) {
     return (
-      <div className="flex w-full shrink-0 flex-col items-end gap-0.5 text-gray-500">
+      <div className="flex w-full shrink-0 flex-col items-end gap-0.5 text-muted-foreground">
         <BookmarkActionBar bookmark={bookmark} />
         {footer}
       </div>
@@ -77,12 +77,12 @@ function BottomRow({
   }
 
   return (
-    <div className="justify flex w-full shrink-0 justify-between text-gray-500">
+    <div className="justify flex w-full shrink-0 justify-between text-muted-foreground">
       <div className="flex items-center gap-2 overflow-hidden text-nowrap font-light">
         {footer && (
           <>
             {footer}
-            <span className="text-gray-400">•</span>
+            <span className="text-muted-foreground/50">•</span>
           </>
         )}
         <Link
@@ -344,7 +344,7 @@ function ListView({
   return (
     <div
       className={cn(
-        "group relative flex max-h-96 gap-4 overflow-hidden rounded-lg p-2",
+        "group relative flex max-h-96 gap-4 overflow-hidden rounded-lg p-2 transition-colors duration-200 hover:bg-accent/30",
         className,
       )}
       data-bookmark-index={bookmarkIndex}
@@ -420,7 +420,7 @@ function GridView({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg",
+        "group relative flex flex-col overflow-hidden rounded-lg transition-colors duration-200 hover:bg-accent/30",
         className,
         layout === "grid" ? "h-[500px]" : "",
       )}
@@ -477,7 +477,7 @@ function CompactView({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg",
+        "group relative flex flex-col overflow-hidden rounded-lg transition-colors duration-200 hover:bg-accent/30",
         className,
         "max-h-96",
       )}
@@ -510,13 +510,15 @@ function CompactView({
             </div>
           )}
           {footer && (
-            <p className="flex shrink-0 gap-2 text-gray-500">•{footer}</p>
+            <p className="flex shrink-0 gap-2 text-muted-foreground">
+              •{footer}
+            </p>
           )}
-          <p className="text-gray-500">•</p>
+          <p className="text-muted-foreground">•</p>
           <Link
             href={`/dashboard/preview/${bookmark.id}`}
             suppressHydrationWarning
-            className="shrink-0 gap-2 text-gray-500"
+            className="shrink-0 gap-2 text-muted-foreground"
           >
             {!hideCreatedAt && (
               <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
