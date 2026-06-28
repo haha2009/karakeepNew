@@ -8,6 +8,9 @@ import { useTRPC } from "@karakeep/shared-react/trpc";
 import { ZBookmarkList } from "@karakeep/shared/types/lists";
 import { ZBookmarkListTreeNode } from "@karakeep/shared/utils/listUtils";
 
+// Use a fixed locale for sorting to ensure consistent ordering between server and client.
+const nameComparator = new Intl.Collator("en").compare;
+
 type RenderFunc = (params: {
   node: ZBookmarkListTreeNode;
   level: number;
@@ -61,7 +64,7 @@ function ListItem({
       })}
       <CollapsibleContent>
         {node.children
-          .sort((a, b) => a.item.name.localeCompare(b.item.name))
+          .sort((a, b) => nameComparator(a.item.name, b.item.name))
           .map((l) => (
             <ListItem
               isOpenFunc={isOpenFunc}
@@ -125,7 +128,7 @@ export function CollapsibleBookmarkLists({
   return (
     <div>
       {filteredRoots
-        .sort((a, b) => a.item.name.localeCompare(b.item.name))
+        .sort((a, b) => nameComparator(a.item.name, b.item.name))
         .map((node) => (
           <ListItem
             key={node.item.id}
