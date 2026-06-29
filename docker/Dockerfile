@@ -63,26 +63,40 @@ ENV npm_config_registry=https://registry.npmmirror.com
 # Avoid sharp prebuild failures by ignoring download errors (will compile from source)
 ENV SHARP_IGNORE_DOWNLOAD_FAILURES=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-# Limit network concurrency to reduce memory usage during build
-RUN pnpm install --frozen-lockfile --network-concurrency 1; exit 0
 
+# Step 1: Install dependencies (cached layer - only re-runs when lockfile changes)
+# Strategy: install with --ignore-scripts to skip ALL postinstall scripts,
+# then manually rebuild only the packages that need native compilation.
+# This avoids re2's install-from-cache which hangs downloading from unreachable CDN.
+RUN pnpm install --frozen-lockfile --network-concurrency 1 --ignore-scripts 2>&1 | tail -3
+
+# Step 1b: Rebuild native modules that need compilation
+# re2: compile from source using node-gyp (avoids download from unreachable GitHub CDN)
+RUN cd /app/node_modules/re2 && npx node-gyp rebuild 2>&1 | tail -5 || \
+    echo "WARNING: re2 build failed, continuing without it"
+
+# better-sqlite3: compile from source
+RUN cd /app/node_modules/better-sqlite3 && npx node-gyp rebuild 2>&1 | tail -3 || \
+    echo "WARNING: better-sqlite3 build failed"
+
+# Step 2: Copy source code
 COPY . .
 
+# Step 3: Build DB migrations (independent cache layer)
 RUN cd packages/db && npx ncc build migrate.ts -o /db_migrations && cp -R drizzle /db_migrations
 
+# Step 4: Build web app (independent cache layer)
+RUN cd apps/web && pnpm exec next build
 
-# Compile the web app
-RUN (cd apps/web && pnpm exec next build --experimental-build-mode compile)
+# Step 5: Build workers (independent cache layer)
+RUN cd apps/workers && pnpm --config.verify-deps-before-run=false build && \
+    CI=true pnpm deploy --node-linker=isolated --legacy --filter @karakeep/workers --prod /prod/workers
 
-# Build the worker code
-RUN (cd apps/workers && pnpm --config.verify-deps-before-run=false build)
-RUN CI=true pnpm deploy --node-linker=isolated --legacy --filter @karakeep/workers --prod /prod/workers
+# Step 6: Build CLI (independent cache layer)
+RUN cd apps/cli && pnpm --config.verify-deps-before-run=false build
 
-# Build the cli
-RUN (cd apps/cli && pnpm --config.verify-deps-before-run=false build)
-
-# Build the mcp server
-RUN (cd apps/mcp && pnpm --config.verify-deps-before-run=false build)
+# Step 7: Build MCP server (independent cache layer)
+RUN cd apps/mcp && pnpm --config.verify-deps-before-run=false build
 
 ################# The All-in-one builder ##############
 
