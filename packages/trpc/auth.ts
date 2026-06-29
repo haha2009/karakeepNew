@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "crypto";
 import * as bcrypt from "bcryptjs";
 import { and, eq } from "drizzle-orm";
 
-import { apiKeys } from "@karakeep/db/schema";
+import { apiKeys, users } from "@karakeep/db/schema";
 import type { ZApiKeyScope } from "@karakeep/shared/types/apiKeys";
 import { API_KEY_FULL_ACCESS_SCOPE } from "@karakeep/shared/types/apiKeys";
 import serverConfig from "@karakeep/shared/config";
@@ -91,11 +91,11 @@ function parseApiKey(plain: string) {
   const parts = plain.split("_");
   if (parts.length != 3) {
     throw new Error(
-      `Malformd API key. API keys should have 3 segments, found ${parts.length} instead.`,
+      `Malformed API key. API keys should have 3 segments, found ${parts.length} instead.`,
     );
   }
   if (parts[0] !== API_KEY_PREFIX_V1 && parts[0] !== API_KEY_PREFIX_V2) {
-    throw new Error(`Malformd API key. Got unexpected key prefix.`);
+    throw new Error(`Malformed API key. Got unexpected key prefix.`);
   }
   return {
     version: parts[0] == API_KEY_PREFIX_V1 ? (1 as const) : (2 as const),
@@ -106,12 +106,25 @@ function parseApiKey(plain: string) {
 
 export async function authenticateApiKey(key: string, database: Context["db"]) {
   const { version, keyId, keySecret } = parseApiKey(key);
-  const apiKey = await database.query.apiKeys.findFirst({
-    where: (k, { eq }) => eq(k.keyId, keyId),
-    with: {
-      user: true,
-    },
-  });
+  // Use select + explicit join instead of db.query API (which breaks in production builds)
+  const rows = await database
+    .select({
+      id: apiKeys.id,
+      keyId: apiKeys.keyId,
+      keyHash: apiKeys.keyHash,
+      scopes: apiKeys.scopes,
+      userId: apiKeys.userId,
+      lastUsedAt: apiKeys.lastUsedAt,
+      userName: users.name,
+      userEmail: users.email,
+      userRole: users.role,
+    })
+    .from(apiKeys)
+    .innerJoin(users, eq(apiKeys.userId, users.id))
+    .where(eq(apiKeys.keyId, keyId))
+    .limit(1);
+
+  const apiKey = rows[0];
 
   if (!apiKey) {
     throw new Error("API key not found");
@@ -150,7 +163,12 @@ export async function authenticateApiKey(key: string, database: Context["db"]) {
   }
 
   return {
-    user: apiKey.user,
+    user: {
+      id: apiKey.userId,
+      name: apiKey.userName,
+      email: apiKey.userEmail,
+      role: apiKey.userRole,
+    },
     apiKey: {
       id: apiKey.id,
       keyId: apiKey.keyId,

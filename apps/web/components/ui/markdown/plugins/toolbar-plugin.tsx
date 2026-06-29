@@ -223,7 +223,6 @@ export default function ToolbarPlugin({
 
   const handleRawMarkdownToggle = useCallback(() => {
     editor.update(() => {
-      console.log(isRawMarkdownMode);
       const root = $getRoot();
       const firstChild = root.getFirstChild();
       if (isRawMarkdownMode) {

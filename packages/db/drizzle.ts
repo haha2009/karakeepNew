@@ -22,6 +22,7 @@ if (serverConfig.database.walMode) {
 sqlite.pragma("cache_size = -65536");
 sqlite.pragma("foreign_keys = ON");
 sqlite.pragma("temp_store = MEMORY");
+sqlite.pragma("busy_timeout = 5000");
 
 instrumentDatabase(sqlite);
 
