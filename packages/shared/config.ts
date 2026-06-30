@@ -93,8 +93,8 @@ const allEnv = z.object({
   BROWSER_CONNECT_ONDEMAND: stringBool("false"),
   BROWSER_COOKIE_PATH: z.string().optional(),
   BROWSER_CLOAK_ENABLED: stringBool("false"),
-  CRAWLER_JOB_TIMEOUT_SEC: z.coerce.number().default(60),
-  CRAWLER_NAVIGATE_TIMEOUT_SEC: z.coerce.number().default(30),
+  CRAWLER_JOB_TIMEOUT_SEC: z.coerce.number().default(300),
+  CRAWLER_NAVIGATE_TIMEOUT_SEC: z.coerce.number().default(60),
   CRAWLER_NUM_WORKERS: z.coerce.number().default(1),
   INFERENCE_NUM_WORKERS: z.coerce.number().default(1),
   SEARCH_NUM_WORKERS: z.coerce.number().default(1),
@@ -121,8 +121,8 @@ const allEnv = z.object({
     .string()
     .prefault("")
     .transform((t) => t.split("%%").filter((a) => a)),
-  CRAWLER_PARSER_MEM_LIMIT_MB: z.coerce.number().default(512),
-  CRAWLER_PARSE_TIMEOUT_SEC: z.coerce.number().default(60),
+  CRAWLER_PARSER_MEM_LIMIT_MB: z.coerce.number().default(1024),
+  CRAWLER_PARSE_TIMEOUT_SEC: z.coerce.number().default(120),
   CRAWLER_SCREENSHOT_TIMEOUT_SEC: z.coerce.number().default(5),
   CRAWLER_IP_VALIDATION_DNS_RESOLVER_TIMEOUT_SEC: z.coerce.number().default(1),
   CRAWLER_DOMAIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1).optional(),

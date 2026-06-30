@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as os from "os";
 import { Transform } from "stream";
 import { pipeline } from "stream/promises";
+import { createRequire } from "node:module";
 import { PlaywrightBlocker } from "@ghostery/adblocker-playwright";
 import { Mutex } from "async-mutex";
 import { and, eq } from "drizzle-orm";
@@ -297,9 +298,44 @@ async function startBrowserInstance() {
       timeout: 5000,
     });
   } else {
-    logger.info(`Running in browserless mode`);
+    const chromePath = getChromeExecutablePath();
+    if (chromePath) {
+      logger.info(
+        `[Crawler] Launching local Chrome browser from ${chromePath}`,
+      );
+      return await chromium.launch({
+        executablePath: chromePath,
+        headless: serverConfig.crawler.headlessBrowser,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+        ],
+      });
+    }
+    logger.info(`[Crawler] No Chrome browser found, falling back to browserless mode`);
     return undefined;
   }
+}
+
+function getChromeExecutablePath(): string | null {
+  const candidates = [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ];
+  for (const path of candidates) {
+    try {
+      if (fsSync.existsSync(path)) {
+        return path;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
 }
 
 async function launchBrowser() {
@@ -515,8 +551,9 @@ async function browserlessCrawlPage(
       logger.info(
         `[Crawler][${jobId}] Successfully fetched the content of "${truncateUrl(url)}". Status: ${response.status}, Size: ${response.size}`,
       );
+      const text = await response.text();
       return {
-        htmlContent: await response.text(),
+        htmlContent: text,
         statusCode: response.status,
         screenshot: undefined,
         pdf: undefined,
@@ -1247,14 +1284,41 @@ function getSubprocessScriptPath(): string {
   return new URL("../scripts/parseHtmlSubprocess.ts", currentUrl).pathname;
 }
 
+function getTsxBinPath(): string {
+  const resolveTsx = (baseDir: string): string | undefined => {
+    try {
+      const req = createRequire(path.join(baseDir, "_placeholder.ts"));
+      const tsxPkg = req.resolve("tsx/package.json");
+      const pkg = req(tsxPkg);
+      const bin =
+        typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.cli || pkg.bin?.default;
+      if (!bin) return undefined;
+      const fullPath = path.join(path.dirname(tsxPkg), bin);
+      if (fsSync.existsSync(fullPath)) return fullPath;
+    } catch {
+      // not found from this base
+    }
+    return undefined;
+  };
+
+  // Try from the worker source dir, then node_modules dirs up the tree
+  const workerDir = new URL(".", import.meta.url).pathname;
+  return (
+    resolveTsx(workerDir) ??
+    resolveTsx(path.join(workerDir, "..", "..", "..")) ??
+    "tsx"
+  );
+}
+
 function getSubprocessCommand(): { cmd: string; args: string[] } {
   const scriptPath = getSubprocessScriptPath();
   const maxOldSpaceSize = serverConfig.crawler.parserMemLimitMb;
 
   if (scriptPath.endsWith(".ts")) {
     // Dev mode: use tsx to run TypeScript directly
+    const tsxBin = getTsxBinPath();
     return {
-      cmd: "tsx",
+      cmd: tsxBin,
       args: [`--max-old-space-size=${maxOldSpaceSize}`, scriptPath],
     };
   }
@@ -1289,6 +1353,12 @@ async function runParseSubprocess(
         `[Crawler][${jobId}] Spawning parse subprocess for "${truncateUrl(url)}" ...`,
       );
 
+      if (abortSignal.aborted) {
+        throw new Error(
+          `[Crawler][${jobId}] Parse subprocess skipped: job already aborted`,
+        );
+      }
+
       const { cmd, args } = getSubprocessCommand();
       const timeoutMs = serverConfig.crawler.parseTimeoutSec * 1000;
 
@@ -1307,6 +1377,9 @@ async function runParseSubprocess(
       }
 
       if (result.exitCode !== 0) {
+        logger.error(
+          `[CRAWL-DEBUG][${jobId}] PARSE_SUBPROCESS_FAIL: url="${truncateUrl(url)}" exitCode=${result.exitCode ?? "null"} signal=${result.signal ?? "none"} isCanceled=${result.isCanceled}`,
+        );
         // Check for OOM: SIGKILL (137) from OS killer, SIGABRT from V8,
         // or V8's "heap out of memory" fatal error message in stderr
         const isOom =
@@ -1348,7 +1421,7 @@ async function runParseSubprocess(
         JSON.parse(result.stdout),
       );
       logger.info(
-        `[Crawler][${jobId}] Parse subprocess completed successfully.`,
+        `[CRAWL-DEBUG][${jobId}] PARSE_SUBPROCESS_OK: url="${truncateUrl(url)}" title="${output.metadata.title ?? "(null)"}" desc="${(output.metadata.description ?? "(null)").slice(0, 100)}" image="${output.metadata.image ?? "(null)"}" hasReadable=${!!output.readableContent}`,
       );
 
       return {
@@ -1744,14 +1817,25 @@ async function getContentType(
         logger.info(
           `[Crawler][${jobId}] Attempting to determine the content-type for the url ${truncateUrl(url)}`,
         );
-        const response = await fetchWithProxy(
-          url,
-          {
-            method: "GET",
-            signal: AbortSignal.any([AbortSignal.timeout(5000), abortSignal]),
-          },
-          runProxy,
-        );
+        const timeoutMs = 10000;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        let response: Awaited<ReturnType<typeof fetchWithProxy>>;
+        try {
+          response = await fetchWithProxy(
+            url,
+            {
+              method: "GET",
+              signal: AbortSignal.any([
+                controller.signal,
+                ...(abortSignal.aborted ? [abortSignal] : []),
+              ]),
+            },
+            runProxy,
+          );
+        } finally {
+          clearTimeout(timeoutId);
+        }
         setSpanAttributes({
           "crawler.getContentType.statusCode": response.status,
         });
@@ -2140,10 +2224,7 @@ async function crawlAndParseUrl(
         .set({
           title: finalMeta.title,
           description: finalMeta.description,
-          // Don't store data URIs as they're not valid URLs and are usually quite large
-          imageUrl: finalMeta.image?.startsWith("data:")
-            ? null
-            : finalMeta.image,
+          imageUrl: finalMeta.image ?? null,
           favicon: finalMeta.logo,
           crawlStatusCode: statusCode,
           author: finalMeta.author,
@@ -2506,11 +2587,8 @@ async function runCrawler(
 
     // Auto-detect GitHub repo links and kick off deep-dive analysis
     try {
-      await import("@karakeep/shared-server")
-        .then((m) => m.onBookmarkCreated(bookmarkId, db))
-        .catch((e) =>
-          console.error(`[crawler] github-detector import failed: ${e}`),
-        );
+      const { onBookmarkCreated } = await import("@karakeep/shared-server/src/github-detector");
+      await onBookmarkCreated(bookmarkId, db);
     } catch (e) {
       console.error(`[crawler] github-detector failed: ${e}`);
     }
