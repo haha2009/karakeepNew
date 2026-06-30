@@ -99,6 +99,51 @@ systemd 的 PATH 可能不包含 `node_modules/.bin`。 workers 代码中已用 
 
 ---
 
+## 架构原则（防止复发）
+
+以下规则源于生产环境踩坑经验，作为 Agent 的长期行为约束。
+
+### 9. 超时必须用 AbortController 模式
+
+```typescript
+// ✅ 正确模式
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), ms);
+try {
+  await fetch(url, { signal: controller.signal });
+} finally {
+  clearTimeout(timeoutId);
+}
+
+// ❌ 禁止: AbortSignal.timeout() 会永久 abort
+signal: AbortSignal.timeout(5000)
+```
+<strong>为什么</strong>: <code>AbortSignal.timeout()</code> 一旦触发，创建的 signal 永久处于 aborted 状态。在 liteque job 超时或链式调用中会级联影响所有后续操作。已在 network.ts、crawlerWorker.ts、feedWorker.ts、webhookWorker.ts 中 6 处修复。
+
+### 10. deploy.sh 必须同时管理 web + workers
+
+每次 deploy.sh rebuild 后，<strong>必须同时验证 karakeep 和 karakeep-workers 服务都 active</strong>。只验证 web 不验证 workers = 部署不完整。
+
+### 11. 超时工具函数必须集中
+
+<code>AbortController + setTimeout + clearTimeout</code> 模式在每个文件中重复实现。未来必须抽象为 <code>packages/shared/utils/timeout.ts</code> 中的 <code>withTimeout(fn, ms)</code>，所有超时复用这一个工具。改一处 = 修全部。
+
+### 12. Deploy 前必须确认两点
+
+1. <code>git status --short</code> 干净
+2. Workers 代码也同步了（改 workers 需要 SCP + restart）
+3. 改完 deploy 脚本后，先在 staging/测试环境验证再推生产
+
+### 13. 避免 2600 行的单文件
+
+<code>crawlerWorker.ts</code> 2600 行混了 7 个关注点（浏览器管理、抓取策略、解析子进程、资源存储、限速、GitHub 检测、错误处理）。当需要修改其中某一个时，必须阅读全部 2600 行。以后新增功能时注意拆分。
+
+### 14. Config 必须按领域分组
+
+当前 30 个 <code>CRAWLER_*</code> 散在同一层级。未来新增配置时按领域分组（browser / crawler / parser / assets / video），便于查找和维护。
+
+---
+
 ## 提交前清理（不可跳过）
 
 每次 commit 前必须先清理工作区。
