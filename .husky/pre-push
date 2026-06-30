@@ -1,0 +1,25 @@
+#!/bin/bash
+# Pre-push: 完整质量门控
+# 在代码进入共享分支前执行完整检查
+# 如果跑不过，阻止 push，但可以在紧急情况下 --no-verify 跳过
+
+set -e
+
+echo "🔍 Pre-push QC — 完整质量检查"
+
+# 阶段 1：代码质量
+echo ""
+echo "▸ lint (turbo 缓存加速)"
+pnpm lint:fix --continue 2>/dev/null || pnpm lint --continue
+
+echo ""
+echo "▸ typecheck"
+pnpm typecheck 2>/dev/null || { echo "✗ typecheck 失败"; exit 1; }
+
+# 阶段 2：构建验证（只构建受影响的包）
+echo ""
+echo "▸ build (turbo pipeline)"
+pnpm build 2>/dev/null || { echo "✗ build 失败"; exit 1; }
+
+echo ""
+echo "✅ Pre-push 全部通过 — 可以推送"

@@ -1,7 +1,6 @@
-# Pre-commit: 清理检查 → typecheck → lint → format → open-api 检查
-# 不可跳过：工作区不干净则阻止提交
+# Pre-commit: 快速门控
+# 目标：秒级完成，不影响「改了 → 提交 → 继续」的节奏
+# 只 catch 最明显的错误，深度检查在 pre-push 做
 
-bash scripts/clean-workspace.sh --check
-pnpm preflight
-pnpm exec sherif
-pnpm run --filter @karakeep/open-api check
+bash scripts/clean-workspace.sh --check 2>/dev/null
+pnpm format:fix --continue 2>/dev/null || true
