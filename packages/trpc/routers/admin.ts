@@ -1,10 +1,11 @@
 import * as dns from "dns";
 import { TRPCError } from "@trpc/server";
-import { count, eq, or, sum } from "drizzle-orm";
+import { count, desc, eq, or, sum } from "drizzle-orm";
 import OpenAI from "openai";
 import { z } from "zod";
 
 import {
+  ai_providers,
   assets,
   bookmarkLinks,
   bookmarks,
@@ -791,6 +792,245 @@ export const adminAppRouter = router({
     };
   }),
 
+  // ── AI Provider Configuration ──────────────────────────────────
+  listAiProviders: adminAiProviderProcedure
+    .input(
+      z.object({
+        includeSecrets: z.boolean().optional().default(false),
+      }),
+    )
+    .output(
+      z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          apiKey: z.string().nullable().optional(),
+          apiKeyDisplay: z.string().nullable().optional(),
+          baseUrl: z.string().nullable(),
+          textModel: z.string(),
+          imageModel: z.string().nullable(),
+          proxyUrl: z.string().nullable(),
+          outputSchema: z.enum(["json", "structured", "plain"]),
+          isDefault: z.boolean(),
+          isActive: z.boolean(),
+          createdAt: z.date().nullable(),
+          updatedAt: z.date().nullable(),
+        }),
+      ),
+    )
+    .query(async ({ ctx }) => {
+      const aiRows = await ctx.db.query.ai_providers.findMany({
+        orderBy: [desc(ai_providers.isDefault), desc(ai_providers.createdAt)],
+      });
+
+      const legacy = await ctx.db.query.providerConfig.findFirst();
+      const results: Array<{
+        id: string;
+        name: string;
+        apiKey: string | null;
+        apiKeyDisplay: string | null;
+        baseUrl: string | null;
+        textModel: string;
+        imageModel: string | null;
+        proxyUrl: string | null;
+        outputSchema: "json" | "structured" | "plain";
+        isDefault: boolean;
+        isActive: boolean;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+      }> = aiRows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        apiKey: p.apiKey,
+        apiKeyDisplay: p.apiKey ? p.apiKey.slice(0, 8) + "..." + p.apiKey.slice(-4) : null,
+        baseUrl: p.baseUrl,
+        textModel: p.textModel,
+        imageModel: p.imageModel,
+        proxyUrl: p.proxyUrl,
+        outputSchema: p.outputSchema as "json" | "structured" | "plain",
+        isDefault: p.isDefault,
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+
+      if (legacy) {
+        results.unshift({
+          id: legacy.id,
+          name: "默认 (legacy)",
+          apiKey: legacy.apiKey,
+          apiKeyDisplay: legacy.apiKey ? legacy.apiKey.slice(0, 8) + "..." + legacy.apiKey.slice(-4) : null,
+          baseUrl: legacy.baseUrl,
+          textModel: legacy.textModel ?? "deepseek-chat",
+          imageModel: legacy.imageModel ?? null,
+          proxyUrl: null,
+          outputSchema: (legacy.outputSchema ?? "json") as "json" | "structured" | "plain",
+          isDefault: true,
+          isActive: true,
+          createdAt: legacy.createdAt,
+          updatedAt: legacy.updatedAt,
+        });
+      }
+
+      return results;
+    }),
+
+  createAiProvider: adminAiProviderProcedure
+    .input(
+      z.object({
+        name: z.string().optional(),
+        apiKey: z.string().optional(),
+        baseUrl: z.string().optional(),
+        textModel: z.string().optional(),
+        imageModel: z.string().optional(),
+        proxyUrl: z.string().optional(),
+        outputSchema: z.enum(["json", "structured", "plain"]).optional(),
+        isDefault: z.boolean().optional().default(false),
+        isActive: z.boolean().optional().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.isDefault) {
+        await ctx.db
+          .update(ai_providers)
+          .set({ isDefault: false, updatedAt: new Date() });
+      }
+
+      const newProvider = await ctx.db
+        .insert(ai_providers)
+        .values({
+          name: input.name ?? "默认",
+          apiKey: input.apiKey ?? null,
+          baseUrl: input.baseUrl ?? null,
+          textModel: input.textModel ?? "deepseek-chat",
+          imageModel: input.imageModel ?? null,
+          proxyUrl: input.proxyUrl ?? null,
+          outputSchema: input.outputSchema ?? "json",
+          isDefault: input.isDefault,
+          isActive: input.isActive,
+        })
+        .returning();
+
+      return newProvider[0];
+    }),
+
+  updateAiProvider: adminAiProviderProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().optional(),
+        apiKey: z.string().optional(),
+        baseUrl: z.string().optional(),
+        textModel: z.string().optional(),
+        imageModel: z.string().optional(),
+        proxyUrl: z.string().optional(),
+        outputSchema: z.enum(["json", "structured", "plain"]).optional(),
+        isDefault: z.boolean().optional(),
+        isActive: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+      if (input.apiKey === "") delete updateData.apiKey;
+      if (input.baseUrl === "") delete updateData.baseUrl;
+      delete updateData.isDefault;
+
+      if (input.isDefault) {
+        await ctx.db
+          .update(ai_providers)
+          .set({ isDefault: false, updatedAt: new Date() });
+      }
+
+      const result = await ctx.db
+        .update(ai_providers)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(ai_providers.id, id))
+        .returning();
+
+      if (input.isDefault && result[0]) {
+        await ctx.db
+          .update(ai_providers)
+          .set({ isDefault: true, updatedAt: new Date() })
+          .where(eq(ai_providers.id, result[0].id));
+      }
+
+      return result[0];
+    }),
+
+  removeAiProvider: adminAiProviderProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.id === "default") {
+        await ctx.db.delete(providerConfig).where(eq(providerConfig.id, "default"));
+      } else {
+        await ctx.db.delete(ai_providers).where(eq(ai_providers.id, input.id));
+      }
+      return { success: true };
+    }),
+
+  setDefaultAiProvider: adminAiProviderProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(ai_providers)
+        .set({ isDefault: false, updatedAt: new Date() });
+      await ctx.db
+        .update(ai_providers)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(ai_providers.id, input.id));
+      return { success: true };
+    }),
+
+  testAiProvider: adminAiProviderProcedure
+    .input(
+      z.object({
+        baseUrl: z.string().optional(),
+        apiKey: z.string().optional(),
+        textModel: z.string().optional(),
+      }),
+    )
+    .output(
+      z.object({
+        ok: z.boolean(),
+        latencyMs: z.number().optional(),
+        error: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      let msg = "connection failed";
+      try {
+        const client = new OpenAI({
+          apiKey: input.apiKey || "test",
+          baseURL: input.baseUrl || undefined,
+        });
+        const start = Date.now();
+        await client.chat.completions.create(
+          {
+            model: input.textModel || "gpt-3.5-turbo",
+            messages: [
+              { role: "user", content: "respond with just the word ok" },
+            ],
+            max_tokens: 10,
+          },
+          { signal: AbortSignal.timeout(15000) },
+        );
+        return { ok: true, latencyMs: Date.now() - start };
+      } catch (outer) {
+        if (outer && typeof outer === "object") {
+          const e = outer as Record<string, unknown>;
+          if (typeof e.message === "string") msg = e.message;
+          else if (typeof e.status === "number") msg = `HTTP ${e.status}`;
+          else if (typeof e.code === "string") msg = e.code;
+          else {
+            try { msg = JSON.stringify(e); } catch { msg = "serialize error"; }
+          }
+        } else if (typeof outer === "string") {
+          msg = outer;
+        }
+        return { ok: false, error: String(msg).slice(0, 300) };
+      }
+    }),
+
   saveProviderConfig: adminAiProviderProcedure
     .input(
       z.object({
@@ -805,7 +1045,6 @@ export const adminAppRouter = router({
       const existing = await ctx.db.query.providerConfig.findFirst();
 
       if (existing) {
-        // Only update fields that are provided
         const updateData: Record<string, unknown> = { updatedAt: new Date() };
         if (input.baseUrl !== undefined) updateData.baseUrl = input.baseUrl;
         if (input.apiKey !== undefined)

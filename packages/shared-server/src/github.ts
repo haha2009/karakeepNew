@@ -591,13 +591,8 @@ export async function runGitHubDeepDive(params: {
   let valueScore: "high" | "mid" | "low" = ruleValueScore;
 
   try {
-    const dbProviderConfig = await db.query.providerConfig.findFirst();
-    const inferenceClient = InferenceClientFactory.build({
-      apiKey: dbProviderConfig?.apiKey ?? undefined,
-      baseURL: dbProviderConfig?.baseUrl ?? undefined,
-      textModel: dbProviderConfig?.textModel ?? undefined,
-      outputSchema: "json",
-    });
+    const { buildInferenceClient } = await import("./ai-providers");
+    const inferenceClient = await buildInferenceClient(db);
 
     if (inferenceClient) {
       const prompt = buildDeepDivePrompt({

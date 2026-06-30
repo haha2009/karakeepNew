@@ -16,7 +16,6 @@ import {
   Download,
   GitBranch,
   Image,
-  KeyRound,
   Link,
   Rss,
   Sparkles,
@@ -78,11 +77,6 @@ const settingsSidebarItems = (
       name: t("settings.import.import_export"),
       icon: <Download size={18} />,
       path: "/settings/import",
-    },
-    {
-      name: t("settings.api_keys.api_keys"),
-      icon: <KeyRound size={18} />,
-      path: "/settings/api-keys",
     },
     {
       name: t("settings.broken_links.broken_links"),

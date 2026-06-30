@@ -33,6 +33,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useClientConfig } from "@/lib/clientConfig";
 import { useTranslation } from "@/lib/i18n/client";
 import { useUserSettings } from "@/lib/userSettings";
@@ -42,6 +50,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Plus, Save, Trash2 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+
+import AddApiKey from "./AddApiKey";
+import DeleteApiKey from "./DeleteApiKey";
+import RegenerateApiKey from "./RegenerateApiKey";
+import { scopeLabel } from "./apiKeyScopes";
+import { isAdminScope } from "./apiKeyScopes";
+import RelativeTime from "@/components/ui/relative-time";
 
 import type { ZBookmarkTags } from "@karakeep/shared/types/tags";
 import { useDebounce } from "@karakeep/shared-react/hooks/use-debounce";
@@ -872,7 +887,7 @@ export function PromptDemo() {
   );
 }
 
-export default function AISettings() {
+export default function AISettings({ isAdmin }: { isAdmin: boolean }) {
   const { t } = useTranslation();
   return (
     <SettingsPage title={t("settings.ai.ai_settings")}>
@@ -881,6 +896,89 @@ export default function AISettings() {
       <CuratedTagsSelector />
       <TaggingRules />
       <PromptDemo />
+      <ApiKeysManagement isAdmin={isAdmin} />
     </SettingsPage>
+  );
+}
+
+function ApiKeysManagement({ isAdmin }: { isAdmin: boolean }) {
+  const api = useTRPC();
+  const { t } = useTranslation();
+  const { data, isLoading, error } = useQuery(api.apiKeys.list.queryOptions());
+
+  if (isLoading)
+    return (
+      <SettingsSection title="API 密钥">
+        <p className="text-sm text-muted-foreground">加载中...</p>
+      </SettingsSection>
+    );
+  if (error)
+    return (
+      <SettingsSection title="API 密钥">
+        <p className="text-sm text-destructive">加载失败</p>
+      </SettingsSection>
+    );
+
+  const keys = data?.keys ?? [];
+
+  return (
+    <SettingsSection
+      title="API 密钥"
+      action={<AddApiKey isAdmin={isAdmin} />}
+    >
+      {keys.length === 0 ? (
+        <p className="text-sm text-muted-foreground">还没有 API 密钥</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>名称</TableHead>
+              <TableHead>Key ID</TableHead>
+              <TableHead>权限范围</TableHead>
+              <TableHead>创建时间</TableHead>
+              <TableHead>最后使用</TableHead>
+              <TableHead>操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {keys.map((key) => (
+              <TableRow key={key.id}>
+                <TableCell>{key.name}</TableCell>
+                <TableCell>
+                  <code className="text-xs">**_{key.keyId}_**</code>
+                </TableCell>
+                <TableCell>
+                  <div className="flex max-w-72 flex-wrap gap-1">
+                    {key.scopes
+                      .filter((s) => !isAdminScope(s))
+                      .map((scope) => (
+                        <Badge key={scope} variant="outline">
+                          {scopeLabel(t, scope)}
+                        </Badge>
+                      ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <RelativeTime date={key.createdAt} />
+                </TableCell>
+                <TableCell>
+                  {key.lastUsedAt ? (
+                    <RelativeTime date={key.lastUsedAt} />
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <RegenerateApiKey name={key.name} id={key.id} />
+                    <DeleteApiKey name={key.name} id={key.id} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </SettingsSection>
   );
 }

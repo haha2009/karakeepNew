@@ -73,13 +73,14 @@ const t = initTRPC.context<Context>().create({
       path: opts.path,
       code: error.code,
     });
+    const message = sanitizeToAscii(shape.message);
     return {
       ...shape,
       message:
-        error.code === "INTERNAL_SERVER_ERROR" &&
-        process.env.NODE_ENV === "production"
-          ? "Internal server error"
-          : shape.message,
+          error.code === "INTERNAL_SERVER_ERROR" &&
+          process.env.NODE_ENV === "production"
+            ? "Internal server error"
+            : message,
       data: {
         ...shape.data,
         zodError:
@@ -90,6 +91,13 @@ const t = initTRPC.context<Context>().create({
     };
   },
 });
+
+function sanitizeToAscii(msg: string): string {
+  if (/[-￿]/.test(msg)) {
+    return `[non-ascii-error]`;
+  }
+  return msg;
+}
 export const createCallerFactory = t.createCallerFactory;
 // Base router and procedure helpers
 export const router = t.router;

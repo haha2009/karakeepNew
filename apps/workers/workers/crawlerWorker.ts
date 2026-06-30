@@ -2504,6 +2504,17 @@ async function runCrawler(
     // Update the search index
     await triggerSearchReindex(bookmarkId, enqueueOpts);
 
+    // Auto-detect GitHub repo links and kick off deep-dive analysis
+    try {
+      await import("@karakeep/shared-server")
+        .then((m) => m.onBookmarkCreated(bookmarkId, db))
+        .catch((e) =>
+          console.error(`[crawler] github-detector import failed: ${e}`),
+        );
+    } catch (e) {
+      console.error(`[crawler] github-detector failed: ${e}`);
+    }
+
     if (serverConfig.crawler.downloadVideo) {
       // Trigger a potential download of a video from the URL
       await VideoWorkerQueue.enqueue(

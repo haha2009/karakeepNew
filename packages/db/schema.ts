@@ -52,6 +52,28 @@ export const providerConfig = sqliteTable("providerConfig", {
     .$onUpdate(() => new Date()),
 });
 
+export const ai_providers = sqliteTable("ai_providers", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  name: text("name").notNull().default("默认"),
+  apiKey: text("apiKey"),
+  baseUrl: text("baseUrl"),
+  textModel: text("textModel").notNull().default("deepseek-chat"),
+  imageModel: text("imageModel"),
+  proxyUrl: text("proxyUrl"),
+  outputSchema: text("outputSchema").notNull().default("json"),
+  isDefault: integer("isDefault", { mode: "boolean" }).notNull().default(false),
+  isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+});
+
 export const users = sqliteTable("user", {
   id: text("id")
     .notNull()
