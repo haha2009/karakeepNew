@@ -541,13 +541,24 @@ async function browserlessCrawlPage(
       logger.info(
         `[Crawler][${jobId}] Running in browserless mode. Will do a plain http request to "${truncateUrl(url)}". Screenshots will be disabled.`,
       );
-      const response = await fetchWithProxy(
-        url,
-        {
-          signal: AbortSignal.any([AbortSignal.timeout(5000), abortSignal]),
-        },
-        runProxy,
-      );
+      const timeoutMs = 10000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetchWithProxy(
+          url,
+          {
+            method: "GET",
+            signal: AbortSignal.any([
+              controller.signal,
+              ...(abortSignal.aborted ? [abortSignal] : []),
+            ]),
+          },
+          runProxy,
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
       logger.info(
         `[Crawler][${jobId}] Successfully fetched the content of "${truncateUrl(url)}". Status: ${response.status}, Size: ${response.size}`,
       );

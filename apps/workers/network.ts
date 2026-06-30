@@ -502,14 +502,17 @@ export async function resolveValidatedRedirectUrl(
   let currentUrl = url;
 
   while (true) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
     const signal = options.signal
       ? AbortSignal.any([
-          AbortSignal.timeout(5000),
+          ctrl.signal,
           options.signal as globalThis.AbortSignal,
         ])
-      : AbortSignal.timeout(5000);
-    const agent = getProxyAgent(currentUrl, runProxy);
-    const validation = await validateUrl(currentUrl, !!agent);
+      : ctrl.signal;
+    try {
+      const agent = getProxyAgent(currentUrl, runProxy);
+      const validation = await validateUrl(currentUrl, !!agent);
     if (!validation.ok) {
       throw new Error(validation.reason);
     }
@@ -529,6 +532,7 @@ export async function resolveValidatedRedirectUrl(
         },
       }),
     );
+    clearTimeout(tid);
 
     if (!isRedirectResponse(response)) {
       closeResponseBody(response);
