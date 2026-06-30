@@ -62,7 +62,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV npm_config_registry=https://registry.npmmirror.com
 # Avoid sharp prebuild failures by ignoring download errors (will compile from source)
 ENV SHARP_IGNORE_DOWNLOAD_FAILURES=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Step 1: Install dependencies (cached layer - only re-runs when lockfile changes)
 # Strategy: install with --ignore-scripts to skip ALL postinstall scripts,
@@ -117,6 +117,8 @@ EXPOSE 3000
 ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG TARGETARCH
 
+RUN sed -i "s|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true && \
+    sed -i "s|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g" /etc/apt/sources.list 2>/dev/null || true
 RUN apt-get update --fix-missing && \
     apt-get install --no-install-recommends -y curl xz-utils && \
     rm -rf /var/lib/apt/lists/*
