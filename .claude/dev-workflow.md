@@ -2,53 +2,31 @@
 
 > 原则：小步快跑，持续验证。commit 快，push 前严。
 
+## 当前架构
+
+- **Monorepo**: pnpm workspace + Turborepo
+- **前端**: Next.js 16 (独立部署到 `/opt/karakeep/apps/web/`)
+- **Workers**: tsx 直跑 TypeScript（没有编译步骤）
+- **数据库**: better-sqlite3 + drizzle ORM
+- **队列**: liteque (SQLite-backed, 不用 Redis)
+- **部署**: SSH → deploy.sh rebuild（同时部署 web + workers）
+
 ## 循环速度
 
 ```
-本地迭代：  git add → git commit  (10秒，turbo cache 保护)
-验证推送：  git push              (1-2分钟，完整 QC)
-生产部署：  deploy.sh rebuild     (2分钟，含自动备份)
+本地迭代:  SCP + ssh systemctl restart workers    (15秒)
+验证推送:  deploy.sh rebuild                       (2分钟，含 git pull)
+热修复:    deploy.sh restart  (不构建，纯重启)
 ```
 
-## Commit 前（秒级，绝不阻塞）
+## Workers 特殊注意事项
 
-```
-✅ 快：workspace clean 检查 + format:fix
-✅ 什么都不需要等，改了 → 提交 → 继续写
-```
+- Workers **没有构建步骤**，改完 .ts 直推 SCP 到服务器 → `systemctl restart karakeep-workers`
+- Web 有构建步骤 (Next.js → standalone)，必须 `deploy.sh rebuild`
+- 配置文件改完 `packages/shared/config.ts` → SCP 到服务器 → restart workers（零构建延迟）
 
-## Push 前（做完整 QC）
+## 关键约束
 
-```
-✅ lint + typecheck + build
-✅ turbo cache 会加速第二次及以后的检查
-✅ 失败了修完再推，不要 --no-verify 跳过（除非紧急 hotfix）
-```
-
-## Turbo 缓存策略
-
-Turbo 的 `lint/typecheck/build` 对未变更的包返回缓存命中。
-- 只改 web 包：其他 26 个包秒出
-- 改了 db 层：db + 依赖它的包（api, web）重新跑，其余缓存
-- **第一次最慢，后面飞起** — 所以别怕跑 full suite
-
-## 什么时候跑全量命令
-
-| 场景 | 跑什么 | 频率 |
-|------|--------|------|
-| 每 commit | pre-commit (秒级) | N 次/天 |
-| 每 push | pre-push (分钟级) | 几次/天 |
-| 怀疑缓存陈旧 | `pnpm typecheck` | 几天一次 |
-| CI/CD 后强制 | — | 每次 PR |
-
-## Sherif / open-api
-
-- 不在 commit 流程里
-- 每周跑一次即可：`pnpm exec sherif` + `pnpm run --filter @karakeep/open-api check`
-- open-api 变更单独 commit
-
-## 构建优化提醒
-
-- `pnpm install` 用 `--frozen-lockfile` (CI) 或不加 (本地，允许更新)
-- 原生模块 (better-sqlite3, sharp) 首次安装需要编译，约 2-3 分钟
-- `turbo run build --continue` 可并行构建多个包
+- **不要 git push 到生产** — 本机无 SSH 密钥 → 用 SCP 或 deploy.sh（服务器上 git pull）
+- **不要删 .codestable/.specify/.superpowers** 这些是 AI 工具临时文件，已进 .gitignore
+- **DATA_DIR 必须为 /var/lib/karakeep/data** — workers 和 batchRecrawl 都需要
