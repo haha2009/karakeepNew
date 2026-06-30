@@ -10,7 +10,7 @@ echo "🔍 Pre-push QC — 完整质量检查"
 # 阶段 1：代码质量
 echo ""
 echo "▸ lint (turbo 缓存加速)"
-pnpm lint:fix --continue 2>/dev/null || pnpm lint --continue
+pnpm lint:fix 2>/dev/null || pnpm lint
 
 echo ""
 echo "▸ typecheck"
