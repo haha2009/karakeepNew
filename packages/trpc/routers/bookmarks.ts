@@ -1041,14 +1041,11 @@ export const bookmarksAppRouter = router({
     .query(async ({ ctx }) => {
       const userId = ctx.user.id;
       const now = new Date();
-      const startOfToday = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+      const startOfToday = Math.floor(
+        new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).getTime() / 1000,
       );
       const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setUTCDate(1);
-      sixMonthsAgo.setUTCMonth(sixMonthsAgo.getUTCMonth() - 6);
-      sixMonthsAgo.setUTCHours(0, 0, 0, 0);
+      const sixMonthsAgo = Math.floor(Date.now() / 1000) - 180 * 86400;
 
       const [counter, typeDist, domainTop, domainAll, heatmap, tagCountResult] =
         await Promise.all([
@@ -1058,8 +1055,8 @@ export const bookmarksAppRouter = router({
               totalCount: sql<number>`COUNT(*)`,
               todayCount: sql<number>`SUM(CASE WHEN ${gt(bookmarks.createdAt, startOfToday)} THEN 1 ELSE 0 END)`,
               favouritedCount: sql<number>`SUM(CASE WHEN ${bookmarks.favourited} = 1 THEN 1 ELSE 0 END)`,
-              currentMonthCount: sql<number>`SUM(CASE WHEN strftime('%Y-%m', ${bookmarks.createdAt} / 1000, 'unixepoch') = ${currentMonth} THEN 1 ELSE 0 END)`,
-              usageDays: sql<number>`COUNT(DISTINCT strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch'))`,
+              currentMonthCount: sql<number>`SUM(CASE WHEN strftime('%Y-%m', ${bookmarks.createdAt}, 'unixepoch') = ${currentMonth} THEN 1 ELSE 0 END)`,
+              usageDays: sql<number>`COUNT(DISTINCT strftime('%Y-%m-%d', ${bookmarks.createdAt}, 'unixepoch'))`,
             })
             .from(bookmarks)
             .where(eq(bookmarks.userId, userId)),
@@ -1097,7 +1094,7 @@ export const bookmarksAppRouter = router({
           // Query D: 热力图
           ctx.db
             .select({
-              day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+              day: sql<string>`strftime('%Y-%m-%d', ${bookmarks.createdAt}, 'unixepoch')`,
               count: sql<number>`COUNT(*)`,
             })
             .from(bookmarks)
@@ -1108,10 +1105,10 @@ export const bookmarksAppRouter = router({
               ),
             )
             .groupBy(
-              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt}, 'unixepoch')`,
             )
             .orderBy(
-              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt} / 1000, 'unixepoch')`,
+              sql`strftime('%Y-%m-%d', ${bookmarks.createdAt}, 'unixepoch')`,
             ),
 
           // Query E: 标签计数
