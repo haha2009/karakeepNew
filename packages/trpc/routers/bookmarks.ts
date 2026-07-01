@@ -1053,7 +1053,7 @@ export const bookmarksAppRouter = router({
           ctx.db
             .select({
               totalCount: sql<number>`COUNT(*)`,
-              todayCount: sql<number>`SUM(CASE WHEN ${gt(bookmarks.createdAt, startOfToday)} THEN 1 ELSE 0 END)`,
+              todayCount: sql<number>`SUM(CASE WHEN ${bookmarks.createdAt} > ${startOfToday} THEN 1 ELSE 0 END)`,
               favouritedCount: sql<number>`SUM(CASE WHEN ${bookmarks.favourited} = 1 THEN 1 ELSE 0 END)`,
               currentMonthCount: sql<number>`SUM(CASE WHEN strftime('%Y-%m', ${bookmarks.createdAt}, 'unixepoch') = ${currentMonth} THEN 1 ELSE 0 END)`,
               usageDays: sql<number>`COUNT(DISTINCT strftime('%Y-%m-%d', ${bookmarks.createdAt}, 'unixepoch'))`,
@@ -1101,7 +1101,7 @@ export const bookmarksAppRouter = router({
             .where(
               and(
                 eq(bookmarks.userId, userId),
-                gt(bookmarks.createdAt, sixMonthsAgo),
+                sql`${bookmarks.createdAt} > ${sixMonthsAgo}`,
               ),
             )
             .groupBy(
