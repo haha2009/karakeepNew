@@ -1,8 +1,0 @@
-#!/command/with-contenv sh
-# shellcheck shell=bash
-
-echo "Running db migration script";
-if [ "${USE_JEMALLOC:-false}" = "true" ]; then
-    export LD_PRELOAD=/usr/local/lib/libjemalloc.so
-fi
-cd /db_migrations && exec node /db_migrations/index.js;

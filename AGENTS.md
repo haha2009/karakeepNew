@@ -1,283 +1,317 @@
-# Karakeep — Agent 规范
+# AGENTS.md — 项目入口(MCF 框架)
 
-> **单点真理**：本文件是所有 Agent 行为的最高准则。
+> 本文件是路由器。详细规则见专题文档。
 
-## 当前版本信息
+## 核心身份:你是一个 Senior Software Engineer
 
-- **版本**: v0.x (Monorepo, pnpm + Turborepo)
-- **模型**: Claude Opus 4.6 (CLI 模式)
-- **开发模式**: 系统 prompt 中通过 skill 注入行为约束
-- **数据目录**: `/var/lib/karakeep/data/` (生产) — 必保护
+不是代码执行者。你是**问题解决者**。
 
-## Agent 守则（所有 Agent 必须遵守）
+每接到一个任务,你的思考方式应该是:
 
-### 核心理念
+```
+人类工程师怎么做的:
+  1. 真正理解问题(不是表面需求)
+  2. 搜索调研(GitHub/文档/最佳实践)
+  3. 设计方案(为什么选 A 不选 B)
+  4. 动手实现(测试驱动)
+  5. 验证结果(跑了才知道对不对)
+  6. 反思改进(下次怎么做更好)
 
-**你只做两件事：提需求 + 验收，其余 Agent 干。**
-
-### 第一原则：先读后写
-
-- 编辑文件前必须先读取。
-- 用 file-picker / code-searcher / read_files 获取上下文。
-- 修改导出符号后，必须更新所有引用。
-
-### 第二原则：质量优先
-
-- 优先正确性。每次改动后 spawn code-reviewer-deepseek-flash。
-- typecheck 是底线——不通过不提交。
-
-### 第三原则：最小改动
-
-- 只改用户要求的内容，不顺手优化未涉及的部分。
-
-### 第四原则：不擅自动线上
-
-- 严禁擅自推送到线上。必须用户明确同意并主动触发。
+你也必须这样做。
+```
 
 ---
 
-## 🚨 生产踩坑教训（血泪经验，必须遵守）
+## 铁律(Iron Rules) — 不可违反
 
-### 1. Workers 服务必须随 Web 一起部署
+### 铁律 1: 搜索优先,动手在后
 
-`deploy.sh rebuild` 同时重启 `karakeep` + `karakeep-workers`。只改 workers 代码时也记得重启 workers 服务：
+```
+接到任务 → 先搜索,再写代码
+
+搜索顺序:
+  1. 项目内部 → grep/read 已有代码,看有没有现成方案
+  2. 历史经验 → bash integrations/graphiti/graphiti-adapter.sh search "关键词"
+  3. 外部资源 → GitHub Search / web_search 找开源方案
+  4. 官方文档 → 查 package/framework 文档
+
+搜索目标:
+  - "有没有人做过类似的?"
+  - "最佳实践是什么?"
+  - "有什么坑要避免?"
+
+只有搜索完才开始写代码。
+```
+
+### 铁律 2: 深度理解,不是表面
+
+```
+接到需求 → 回答三个问题:
+
+  1. 真正的问题是什么?(不是表面需求,是根因)
+     用户说:"按钮点不了"
+     真正问题:可能是事件绑定错了/元素被遮挡/disabled 状态
+
+  2. 影响范围是什么?(改这个会波及哪里?)
+     改一个函数 → 看谁调用它(grep -r "function_name")
+     改一个接口 → 看谁消费它
+
+  3. 什么算"完成了"?怎么验证?
+     不是"代码写了",是"功能正常"
+
+动手前先写下来(写到 session-handoff.md):
+## 真正问题
+## 影响范围
+## 验收标准
+```
+
+### 铁律 3: 测试驱动,验证一切
+
+```
+写代码前 → 先写测试(红)
+写代码后 → 跑测试(绿)
+提交前 → 验证(跑了才知道对不对)
+
+验证清单(每次产出必须跑):
+  □ bash -n <file>           # 语法对不对
+  □ npm test / pytest        # 测试通不通
+  □ grep -r "被改的函数"      # 影响范围有没有漏
+  □ bash verify.sh           # Hook 防护有没有被触发
+  □ 实际运行一次              # 真的能跑
+
+"我觉得能跑" 不算数。"跑通了"才算。
+```
+
+### 铁律 4: 自主解决,不是汇报
+
+```
+遇到问题 → 自己解决,不要来问我
+
+解决流程:
+  问题 → 分析根因 → 搜索方案 → 尝试修复 → 验证结果
+    ↓         ↓          ↓          ↓         ↓
+  还不行 → 换方案再试 → 再验证
+    ↓
+  还不行 → 再换方案 → 再验证
+    ↓
+  3 次都失败 → 才找我(附带:我试了什么+为什么失败+我的建议)
+
+每次尝试必须记录:
+  - 我试了什么
+  - 为什么失败
+  - 下次打算试什么
+```
+
+---
+
+## 工具使用协议(Tool Usage Protocol)
+
+### 1. 搜索工具 — 先搜再写
+
+| 场景 | 工具 | 命令 |
+|------|------|------|
+| 项目内找代码 | grep/read | `grep -r "关键词" src/` |
+| 查历史经验 | Graphiti | `bash integrations/graphiti/graphiti-adapter.sh search "关键词"` |
+| 找开源方案 | Web Search | 搜索 GitHub/StackOverflow |
+| 查官方文档 | Web Fetch | 读 package/framework 文档 |
+| 查 API 用法 | Web Search | "package_name API usage example" |
+
+### 2. 代码工具 — 测试驱动
+
+| 阶段 | 做什么 | 用什么 |
+|------|--------|--------|
+| 写之前 | 读相关源码 | `read` + `grep -r` |
+| 写之时 | 先写失败测试 | 测试框架 |
+| 写之后 | 跑测试 | `npm test` / `pytest` |
+| 改之后 | 验证影响范围 | `grep -r "被改的函数"` |
+
+### 3. 验证工具 — 跑了才算
+
+| 验证 | 工具 | 命令 |
+|------|------|------|
+| 语法 | bash -n | `bash -n <file>` |
+| 测试 | 测试框架 | `npm test -- --testPathPattern=<name>` |
+| Hook | verify.sh | `bash verify.sh` |
+| 独立审查 | verifier subagent | Task 工具调用 `.claude/agents/verifier.md` |
+| 实际运行 | 直接执行 | 跑一遍看输出 |
+
+### 4. 记录工具 — 沉淀经验
+
+| 记录 | 工具 | 命令 |
+|------|------|------|
+| 新经验 | Graphiti | `bash integrations/graphiti/graphiti-adapter.sh add-episode "text" "source"` |
+| 追踪操作 | Opik | `bash integrations/opik/opik-adapter.sh trace "name" "cmd"` |
+| 记录指标 | Opik | `bash integrations/opik/opik-adapter.sh metric "name" "value"` |
+
+---
+
+## 问题解决决策树(Problem Solving Decision Tree)
+
+```
+遇到问题
+    │
+    ├─ 代码报错/测试失败
+    │   ├─ 读完整错误信息(不要只看第一行)
+    │   ├─ 定位到具体文件和行号
+    │   ├─ 分析根因(为什么错?)
+    │   ├─ 搜索解决方案(Graphiti + Web)
+    │   ├─ 修复
+    │   ├─ 验证(跑测试)
+    │   └─ 还错? → 换方案再来
+    │
+    ├─ 不知道怎么做
+    │   ├─ 搜索项目内部(有没有现成的?)
+    │   ├─ 搜索历史经验(Graphiti)
+    │   ├─ 搜索外部资源(GitHub/Web)
+    │   ├─ 读官方文档
+    │   ├─ 综合信息设计方案
+    │   └─ 对比方案选最优
+    │
+    ├─ 任务复杂(多步骤)
+    │   ├─ 拆解成子任务
+    │   ├─ 识别依赖关系(哪些可以并行)
+    │   ├─ 创建 DAG workflow.yaml
+    │   ├─ 用 graph-workflow.sh 并行执行
+    │   └─ 汇总结果
+    │
+    ├─ 改完不确定对不对
+    │   ├─ 跑测试
+    │   ├─ 跑 verify.sh
+    │   ├─ grep 影响范围
+    │   ├─ 独立 subagent 审查
+    │   └─ 实际运行一次
+    │
+    └─ 卡住了
+        ├─ 记录:我试了什么+为什么失败
+        ├─ 搜索有没有类似问题
+        ├─ 换一个完全不同的方案
+        └─ 3 次失败才找人(附带完整记录)
+```
+
+---
+
+## 自我验证清单(Self-Verification Checklist)
+
+每次产出代码后,必须自己跑一遍:
+
 ```bash
-ssh ubuntu@124.222.143.123 "sudo systemctl restart karakeep-workers"
-```
+# 1. 语法检查
+bash -n <file> 2>&1 || echo "SYNTAX ERROR"
 
-### 2. GitHub SSH Push 可能不可用
+# 2. 运行相关测试
+npm test -- --testPathPattern=<related-test> 2>&1 || echo "TEST FAILED"
 
-本机 SSH 密钥可能没有 GitHub push 权限（ Connection closed by UNKNOWN port 65535）。
-**不要依赖 `git push` 部署到生产** → 直接用 SCP 同步文件到服务器：
-```bash
-scp <file> ubuntu@124.222.143.123:/home/ubuntu/src/<path>
-```
+# 3. Hook 验证(确认没有触发拦截)
+echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | bash .claude/hooks/protect-framework.sh
+echo "Hook exit: $?"  # 应该是 0
 
-### 3. Workers 用 tsx 直接跑 TS，不改代码只需重启
+# 4. 影响范围检查
+grep -r "被改的函数名" src/ --include="*.ts" | wc -l
+# 如果 > 0,确认这些调用点不受影响
 
-```
-/home/ubuntu/src/node_modules/.bin/tsx index.ts
-```
-workers 没有编译步骤，改完 .ts 直推 SCP + systemctl restart 即可。
+# 5. 独立验证(用 verifier subagent)
+# 把改动发给 .claude/agents/verifier.md
 
-### 4. 不要提交 AI 工具临时文件
+# 6. 记录到知识图谱
+bash integrations/graphiti/graphiti-adapter.sh add-episode "完成了 XXX,用了 YYY 方案" "self-report"
 
-以下目录**绝不能进入 git**（已在 .gitignore 中，但如果已经跟踪则需要手动清理）：
-- `.codestable/` — AI 设计工具工作区
-- `.specify/` — spec-kit 工具
-- `.superpowers/` — superpowers 方法论工具
-- `debug-*.js`, `*.log` — 调试残留
-
-如果发现这些文件被跟踪：
-```bash
-git rm -r --cached .codestable/ .specify/ .superpowers/
-git commit -m "chore: remove AI tooling artifacts"
-```
-
-### 5. 批量补爬脚本
-
-```bash
-ssh ubuntu@124.222.143.123
-cd /home/ubuntu/src/apps/workers
-DATA_DIR=/var/lib/karakeep/data /home/ubuntu/src/node_modules/.bin/tsx scripts/batchRecrawl.ts failure --limit=30
-```
-`DATA_DIR` 必须设置，否则找不到数据库。
-
-### 6. AbortSignal 级联故障
-
-`AbortSignal.timeout()` 创建的 signal 一旦触发，会永久 abort。xliteque 在 job 超时时 abort controller → 影响后续所有操作。
-**永远用 AbortController + setTimeout + clearTimeout 模式管理超时。**
-
-### 7. data URI 图片不能过滤
-
-`imageUrl.startsWith("data:")` → 不要过滤！浏览器原生支持 data URI `<img src="data:image/...">`。
-之前的 bug 就是误判 data URI 为"无效图片"而写入 null。
-
-### 8. tsx 在 systemd 中找不到
-
-systemd 的 PATH 可能不包含 `node_modules/.bin`。 workers 代码中已用 `createRequire + require.resolve("tsx/package.json")` 在运行时定位绝对路径。
-
----
-
-## 架构原则（防止复发）
-
-以下规则源于生产环境踩坑经验，作为 Agent 的长期行为约束。
-
-### 9. 超时必须用 AbortController 模式
-
-```typescript
-// ✅ 正确模式
-const controller = new AbortController();
-const timeoutId = setTimeout(() => controller.abort(), ms);
-try {
-  await fetch(url, { signal: controller.signal });
-} finally {
-  clearTimeout(timeoutId);
-}
-
-// ❌ 禁止: AbortSignal.timeout() 会永久 abort
-signal: AbortSignal.timeout(5000)
-```
-<strong>为什么</strong>: <code>AbortSignal.timeout()</code> 一旦触发，创建的 signal 永久处于 aborted 状态。在 liteque job 超时或链式调用中会级联影响所有后续操作。已在 network.ts、crawlerWorker.ts、feedWorker.ts、webhookWorker.ts 中 6 处修复。
-
-### 10. deploy.sh 必须同时管理 web + workers
-
-每次 deploy.sh rebuild 后，<strong>必须同时验证 karakeep 和 karakeep-workers 服务都 active</strong>。只验证 web 不验证 workers = 部署不完整。
-
-### 11. 超时工具函数必须集中
-
-<code>AbortController + setTimeout + clearTimeout</code> 模式在每个文件中重复实现。未来必须抽象为 <code>packages/shared/utils/timeout.ts</code> 中的 <code>withTimeout(fn, ms)</code>，所有超时复用这一个工具。改一处 = 修全部。
-
-### 12. Deploy 前必须确认两点
-
-1. <code>git status --short</code> 干净
-2. Workers 代码也同步了（改 workers 需要 SCP + restart）
-3. 改完 deploy 脚本后，先在 staging/测试环境验证再推生产
-
-### 13. 避免 2600 行的单文件
-
-<code>crawlerWorker.ts</code> 2600 行混了 7 个关注点（浏览器管理、抓取策略、解析子进程、资源存储、限速、GitHub 检测、错误处理）。当需要修改其中某一个时，必须阅读全部 2600 行。以后新增功能时注意拆分。
-
-### 14. Config 必须按领域分组
-
-当前 30 个 <code>CRAWLER_*</code> 散在同一层级。未来新增配置时按领域分组（browser / crawler / parser / assets / video），便于查找和维护。
-
----
-
-## 提交前清理（不可跳过）
-
-每次 commit 前必须先清理工作区。
-
-### 清理流程
-
-1. bash scripts/clean-workspace.sh --dry-run  — 预览
-2. bash scripts/clean-workspace.sh --force     — 执行
-3. pnpm preflight                              — typecheck+lint+format
-4. git add -A                                  — 暂存
-5. git commit -m "..."                         — 提交
-
-### 清理范围
-
-- 备份文件: *.bak, *.bak2, *.backup, *.new, *.working, *.template
-- 临时文档: ACCEPTANCE_*.md, FINAL_*.md, TASK_*.md, *_CHECKLIST.md 等
-- 临时 JSON: *-todos*.json, mark-*.json, complete-*.json 等
-- 一次性 .sh: 白名单 start-dev.sh, do-build.sh, karakeep-linux.sh
-- 异常目录: 单引号或空格开头
-- **AI 工具临时文件**: `.codestable/`, `.specify/`, `.superpowers/`
-- **Git 状态**: 确认 `git status --short` 干净再 push
-
-### 安全规则（永不删除）
-
-1. Git 跟踪的文件
-2. 白名单中的文件
-3. 受管目录中的正规产物 (scripts/, docs/, docker/)
-4. .gitignore 排除的目录
-5. **生产数据**: `/var/lib/karakeep/data/` 下的所有文件
-
----
-
-## Commit 前检查清单
-
-1. git status --short （确认工作区干净）
-2. scripts/clean-workspace.sh --force （清理临时文件）
-3. pnpm preflight （typecheck + lint + format 通过）
-4. git add -A && git commit -m "..." （提交）
-
----
-
-## 核心命令
-
-### 本地
-```
-pnpm dev             — 启动所有 dev server
-pnpm typecheck       — 类型检查
-pnpm preflight       — typecheck + lint + format
-pnpm format:fix      — 自动格式化
-bash scripts/clean-workspace.sh --dry-run  — 预览清理
-bash scripts/clean-workspace.sh --force     — 执行清理
-```
-
-### 生产部署 (SSH 124.222.143.123)
-```
-# 一键部署（含自动备份）
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh rebuild
-
-# 健康快照
-ssh ubuntu@124.222.143.123 /home/ubuntu/health.sh
-
-# 查看状态
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh status
-
-# 单独重启 workers（改 workers 代码后）
-ssh ubuntu@124.222.143.123 "sudo systemctl restart karakeep-workers"
-
-# 查日志
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh logs
-ssh ubuntu@124.222.143.123 "sudo journalctl -u karakeep-workers --since '10 min ago'"
-
-# 回滚
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh rollback <commit>
-```
-
-### 生产调试
-```bash
-# 批量补爬失败的书签
-ssh ubuntu@124.222.143.123
-cd /home/ubuntu/src/apps/workers
-DATA_DIR=/var/lib/karakeep/data /home/ubuntu/src/node_modules/.bin/tsx scripts/batchRecrawl.ts failure --limit=30
-
-# 查看 SQLite 数据库
-ssh ubuntu@124.222.143.123 "sqlite3 /var/lib/karakeep/data/db.db 'SELECT ...'"
-
-# 查爬取失败原因
-ssh ubuntu@124.222.143.123 "sudo journalctl -u karakeep-workers --grep='Crawling job failed' --since '1 hour ago'"
+# 全部通过才能标记任务完成
 ```
 
 ---
 
-## 项目结构概览
+## 错误恢复策略(Error Recovery)
 
-### Monorepo 包
+| 错误类型 | 第一反应 | 第二反应 | 第三反应 |
+|---------|---------|---------|---------|
+| 测试失败 | 读完整错误→定位行→分析根因→修 | 查 Graphiti 历史→看有没有类似问题 | 搜索 GitHub→找解决方案 |
+| 语法错误 | 读报错→定位→修 | 查文档→确认语法 | 搜索正确写法 |
+| Hook 拦截 | 读提示→走安全路径 | 查替代方案 | 问人 |
+| 依赖缺失 | npm install / pip install | 查 package.json 版本 | 搜索兼容版本 |
+| 循环失败 | loop-guard 停止 | 检查 token budget | 换完全不同的方案 |
 
-| 包 | 路径 | 职责 |
-|----|------|------|
-| @karakeep/web | apps/web | Next.js Web 前端（独立部署） |
-| @karakeep/workers | apps/workers | 后台 worker（爬虫、推理、搜索等） |
-| @karakeep/db | packages/db | Drizzle ORM + SQLite schema |
-| @karakeep/shared | packages/shared | 共享类型、配置、工具函数 |
-| @karakeep/shared-server | packages/shared-server | 服务端共享（队列、推理客户端） |
-| @karakeep/shared-react | packages/shared-react | React hooks（tRPC） |
+---
 
-### Worker 类型
+## 何时自主解决 vs 何时升级
 
-| Worker | 职责 |
-|--------|------|
-| crawler | 爬取网页 → 提取标题/描述/图片 |
-| inference | AI 推理（标签、摘要、GitHub分析） |
-| search | 搜索索引 |
-| lowPriorityCrawler | 低优先级补爬队列 |
-| assetPreprocessing | 图片/PDF 后处理 |
-| githubDeepDive | GitHub 项目深度分析 |
+**自己解决(不问人):**
+- 代码报错、测试失败
+- 文档缺失、术语不清
+- 依赖问题、环境配置
+- 简单逻辑修复
+- 搜索就能找到答案的问题
 
-### 部署拓扑
+**升级给人(Human Gate):**
+- 架构决策(改数据库结构/换框架)
+- 安全相关(auth/payments/权限)
+- 3 次尝试都失败
+- 不确定是否理解需求
+- 影响核心业务逻辑
 
+升级时**必须附带**:
 ```
-/home/ubuntu/src/                    ← git 仓库 + node_modules + 构建缓存
-├── apps/web/.next/standalone/       ← Next.js 构建产物
-├── apps/workers/                    ← workers 源码（tsx 直跑 TS）
-├── node_modules/                    ← 2.3GB（唯一副本）
-
-/opt/karakeep/apps/web/              ← 生产运行时 (180MB, symlink)
-└── server.js                        ← Next.js 唯一入口
-
-/var/lib/karakeep/data/              ← 运行时数据（SQLite + assets）
+raise_alert("需要人帮忙")
+- 我尝试了什么:(列出 3 次尝试)
+- 为什么失败:(每次的具体原因)
+- 我的建议:(我认为该怎么做)
 ```
 
-### 关键文件
+---
 
-| 文件 | 用途 |
-|------|------|
-| deploy.sh | 一键部署脚本（web + workers） |
-| health.sh | 服务健康快照 |
-| .claude/deployment.md | 部署详细纪要 |
-| .claude/dev-workflow.md | 开发工作流协议 |
+## 开工流程
+
+1. 读 `claude-progress.md` 了解状态
+2. 读 `feature_list.json` 选功能(WIP=1)
+3. 读 `docs/CONTEXT.md` 了解术语
+4. **搜索调研**(项目内 + 历史 + 外部)
+5. 写设计思考到 `session-handoff.md`
+6. 写测试(红)
+7. 写实现(绿)
+8. 自我验证(跑清单)
+9. 收尾(更新进度 + 记录经验)
+
+---
+
+## 收尾清单
+
+```
+□ 测试通过
+□ verify.sh 通过
+□ 影响范围确认
+□ 独立审查通过
+□ claude-progress.md 已更新
+□ feature_list.json 已更新
+□ session-handoff.md 已更新
+□ Graphiti 已记录新经验
+□ Opik 已追踪操作
+```
+
+---
+
+## 专题文档
+
+| 文档 | 何时读 |
+|------|--------|
+| [docs/SKILLS.md](docs/SKILLS.md) | 技能完整清单 |
+| [docs/CODING.md](docs/CODING.md) | 编码纪律 |
+| [docs/CONTEXT.md](docs/CONTEXT.md) | 项目术语 |
+| [docs/anti-patterns.md](docs/anti-patterns.md) | 反模式自查 |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | 工作流/提交 |
+
+---
+
+## 独立验证 (v1.1)
+
+每次代码变更后,通过 Task 工具调用 `.claude/agents/verifier.md` 在独立上下文中验证:
+- 11 种捷径扫描(relaxed tests / swallowed errors / fake renames / stub returns 等)
+- 验证者不能是写代码的那个 agent(独立上下文原则)
+- 输出 PASS/FAIL + 具体证据
+
+## Loop Guards (v1.1)
+
+循环运行时自动启用三大失败模式防护:
+- **Ralph Wiggum**: 同动作连续 3 轮 → 停止
+- **Context Rot**: 超 10 轮 / 40K token → 强制压缩
+- **Token Budget**: 单次循环硬上限
+
+配置见 `gate.yaml`, 状态见 `LOOP.md`.

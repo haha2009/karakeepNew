@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "wip_limit": 1,
+  "require_verification_evidence": true,
+  "features": [],
+  "metadata": {
+    "status_machine": {
+      "not_started": ["in_progress"],
+      "in_progress": ["passing", "blocked"],
+      "passing": ["done"],
+      "blocked": ["in_progress", "not_started"],
+      "done": []
+    }
+  }
+}

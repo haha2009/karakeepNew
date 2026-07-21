@@ -1,0 +1,34 @@
+export type FeatureToggles = Record<FeatureToggleKeys, boolean> & {
+  default_page_size?: number;
+};
+
+export enum FeatureToggleKeys {
+  PYTHON_EVALUATOR_ENABLED = "python_evaluator_enabled",
+  GUARDRAILS_ENABLED = "guardrails_enabled",
+  TOGGLE_OPIK_AI_ENABLED = "opik_aienabled",
+  WELCOME_WIZARD_ENABLED = "welcome_wizard_enabled",
+  EXPORT_ENABLED = "export_enabled",
+  DATASET_EXPORT_ENABLED = "dataset_export_enabled",
+  DEMO_DATA_ENABLED = "demo_data_enabled",
+  OLLIE_ENABLED = "ollie_enabled",
+  AGENT_INSIGHTS_ENABLED = "agent_insights_enabled",
+  PROJECT_HOMEPAGE_ENABLED = "project_homepage_enabled",
+  SPAN_LLM_AS_JUDGE_ENABLED = "span_llm_as_judge_enabled",
+  SPAN_USER_DEFINED_METRIC_PYTHON_ENABLED = "span_user_defined_metric_python_enabled",
+  COST_INTELLIGENCE_ENABLED = "cost_intelligence_enabled",
+  // Gates the spans-in-LLM-judge feature: agentic-tools loop AND the {{spans}}
+  // template substitution in trace-scope rules. When off, FE editors stop
+  // auto-filling `spans → "spans"` and keep the row visible/editable so the user
+  // can map `spans` to a custom path like any other variable; backend mirrors
+  // by skipping the SpanService fetch + injecting "[]" into {{spans}}.
+  AGENTIC_TOOLS_ENABLED = "agentic_tools_enabled",
+  // LLM Provider feature flags
+  OPENAI_PROVIDER_ENABLED = "openai_provider_enabled",
+  ANTHROPIC_PROVIDER_ENABLED = "anthropic_provider_enabled",
+  GEMINI_PROVIDER_ENABLED = "gemini_provider_enabled",
+  OPENROUTER_PROVIDER_ENABLED = "openrouter_provider_enabled",
+  VERTEXAI_PROVIDER_ENABLED = "vertexai_provider_enabled",
+  BEDROCK_PROVIDER_ENABLED = "bedrock_provider_enabled",
+  CUSTOMLLM_PROVIDER_ENABLED = "customllm_provider_enabled",
+  OLLAMA_PROVIDER_ENABLED = "ollama_provider_enabled",
+}

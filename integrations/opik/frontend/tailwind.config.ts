@@ -1,0 +1,238 @@
+import { fontFamily } from "tailwindcss/defaultTheme";
+
+/** @type {import("tailwindcss").Config} */
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      fontFamily: {
+        sans: ["Inter", ...fontFamily.sans],
+        code: [
+          `Ubuntu Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`,
+        ],
+      },
+      colors: {
+        white: "var(--white)",
+
+        /* Action cards */
+        "action-trace-background": "var(--action-trace-background)",
+        "action-trace-text": "var(--action-trace-text)",
+        "action-experiment-background": "var(--action-experiment-background)",
+        "action-experiment-text": "var(--action-experiment-text)",
+        "action-guardrail-background": "var(--action-guardrail-background)",
+        "action-guardrail-text": "var(--action-guardrail-text)",
+        "action-playground-background": "var(--action-playground-background)",
+        "action-playground-text": "var(--action-playground-text)",
+
+        /* Legacy colors (for backward compatibility) */
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        "foreground-secondary": "hsl(var(--foreground-secondary))",
+        "new-foreground-secondary": "hsl(var(--new-foreground-secondary))",
+        warning: "hsl(var(--warning))",
+        success: "hsl(var(--success))",
+        "light-slate": "hsl(var(--light-slate))",
+        "tree-line": "hsl(var(--tree-line))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          active: "hsl(var(--primary-active))",
+          50: "hsl(var(--primary-50))",
+          100: "hsl(var(--primary-100))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          slate: "hsl(var(--muted-slate))",
+          gray: "hsl(var(--muted-gray))",
+          disabled: "hsl(var(--muted-disabled))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+          background: "hsl(var(--accent-background))",
+        },
+        popover: {
+          gray: "hsl(var(--popover-gray))",
+        },
+        tooltip: {
+          DEFAULT: "hsl(var(--tooltip))",
+          foreground: "hsl(var(--tooltip-foreground))",
+        },
+        soft: {
+          background: "hsl(var(--soft-background))",
+        },
+        slate: {
+          300: "hsl(var(--slate-300))",
+        },
+        gray: {
+          100: "var(--gray-100)",
+        },
+
+        /* Custom colors for simplified class names */
+        "toggle-outline-active": "var(--toggle-outline-active)",
+        "diff-removed-bg": "var(--diff-removed-bg)",
+        "diff-removed-text": "var(--diff-removed-text)",
+        "diff-removed-border": "var(--diff-removed-border)",
+        "diff-added-bg": "var(--diff-added-bg)",
+        "diff-added-text": "var(--diff-added-text)",
+        "diff-added-border": "var(--diff-added-border)",
+        "upload-icon-bg": "hsl(var(--upload-icon-bg))",
+        "code-block": "var(--code-block)",
+        "special-button": "var(--special-button)",
+        "thread-active": "var(--thread-active)",
+        "selection-bar": "hsl(var(--selection-bar))",
+        "row-selected": "hsl(var(--row-selected))",
+
+        /* Info box colors */
+        "info-box-bg": "hsl(var(--info-box-bg))",
+        "info-box-text": "hsl(var(--info-box-text))",
+        "info-box-icon-bg": "hsl(var(--info-box-icon-bg))",
+        "info-box-icon-text": "hsl(var(--info-box-icon-text))",
+
+        /* Warning box colors */
+        "warning-box-bg": "hsl(var(--warning-box-bg))",
+        "warning-box-text": "hsl(var(--warning-box-text))",
+        "warning-box-icon-bg": "hsl(var(--warning-box-icon-bg))",
+        "warning-box-icon-text": "hsl(var(--warning-box-icon-text))",
+
+        /* Recoverable-waste callout colors (AI Spend) */
+        "waste-bg": "var(--waste-bg)",
+        "waste-border": "var(--waste-border)",
+        "waste-text": "var(--waste-text)",
+
+        /* Chart colors (Figma Design System) */
+        "chart-blue": "var(--chart-blue)",
+        "chart-yellow": "var(--chart-yellow)",
+        "chart-green": "var(--chart-green)",
+        "chart-red": "var(--chart-red)",
+        "chart-burgundy": "var(--chart-burgundy)",
+        "chart-purple": "var(--chart-purple)",
+        "chart-pink": "var(--chart-pink)",
+        "chart-orange": "var(--chart-orange)",
+        "chart-teal": "var(--chart-teal)",
+        "chart-gray-light": "var(--chart-gray-light)",
+        "chart-gray-dark": "var(--chart-gray-dark)",
+
+        /* Accent colors */
+        "accent-green": "var(--accent-green)",
+        "accent-blue": "var(--accent-blue)",
+        "accent-purple": "var(--accent-purple)",
+        "accent-magenta": "var(--accent-magenta)",
+        "accent-red": "var(--accent-red)",
+        "accent-indigo": "var(--accent-indigo)",
+
+        /* Template icon colors */
+        "template-icon-metrics": "var(--template-icon-metrics)",
+        "template-icon-performance": "var(--template-icon-performance)",
+        "template-icon-scratch": "var(--template-icon-scratch)",
+      },
+      borderRadius: {
+        xxl: "calc(var(--radius) + 4px)",
+        xl: "calc(var(--radius) + 2px)",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "ollie-breathe": {
+          "0%, 100%": { transform: "scale(1)", opacity: "0.95" },
+          "50%": { transform: "scale(1.04)", opacity: "1" },
+        },
+        "ollie-blink": {
+          "0%, 92%, 100%": { transform: "scaleY(1)" },
+          "95%": { transform: "scaleY(0.1)" },
+        },
+        "ollie-text-in": {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "caret-blink": {
+          "0%,70%,100%": { opacity: "1" },
+          "20%,50%": { opacity: "0" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        // Outward box-shadow ring (inherits the dot's currentColor) + opacity
+        // fade — the "thinking" beacon, matching ollie-assist's status dot.
+        "beacon-pulse": {
+          "0%": { boxShadow: "0 0 0 0 currentColor", opacity: "1" },
+          "70%": { boxShadow: "0 0 0 5px transparent", opacity: "0.7" },
+          "100%": { boxShadow: "0 0 0 0 transparent", opacity: "1" },
+        },
+        "progress-indeterminate": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(350%)" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "ollie-breathe": "ollie-breathe 3.2s ease-in-out infinite",
+        "ollie-blink": "ollie-blink 5.4s ease-in-out infinite",
+        "ollie-text-in": "ollie-text-in 300ms ease-out",
+        "caret-blink": "caret-blink 1.25s ease-out infinite",
+        shimmer: "shimmer 1.8s ease-in-out infinite",
+        "beacon-pulse": "beacon-pulse 1.4s ease-out infinite",
+        "progress-indeterminate":
+          "progress-indeterminate 1.3s ease-in-out infinite",
+      },
+      boxShadow: {
+        "action-card": "var(--action-card-shadow)",
+      },
+    },
+  },
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+    function ({ addVariant, e }) {
+      addVariant(
+        "group-hover-except-self",
+        ({ modifySelectors, separator }) => {
+          modifySelectors(({ className }) => {
+            return `.group:hover .${e(
+              `group-hover-except-self${separator}${className}`,
+            )}:not(:hover)`;
+          });
+        },
+      );
+    },
+  ],
+  safelist: ["playground-table", "comet-compare-optimizations-table"],
+};

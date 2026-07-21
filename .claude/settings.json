@@ -1,15 +1,45 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(pnpm typecheck:*)",
-      "Bash(pnpm --filter * typecheck:*)",
-      "Bash(pnpm lint:*)",
-      "Bash(pnpm --filter * lint:*)",
-      "Bash(pnpm format:*)",
-      "Bash(pnpm --filter * format:*)",
-      "Bash(pnpm test:*)",
-      "Bash(pnpm --filter * test:*)"
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-framework.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-git.sh",
+            "timeout": 5
+          }
+        ]
+      }
     ],
-    "deny": []
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-start.sh",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
   }
 }

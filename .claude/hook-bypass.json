@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "description": "Hook 白名单 - 匹配这些模式的命令不会被拦截",
+  "whitelisted_patterns": [
+    "rm \\.env\\.local$",
+    "rm \\.env\\.example$",
+    "rm .*\\.bak$",
+    "rm MY\\.CLAUDE\\.md$",
+    "rm .*-copy\\.md$",
+    "rm .* - Copy\\.md$",
+    "rm .*\\.test$",
+    "rm test\\.md$"
+  ],
+  "enabled": true
+}

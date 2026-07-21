@@ -1,0 +1,45 @@
+# gate.yaml — 自动化循环门禁配置
+# 控制自动化循环的启动/停止条件和 loop guard 阈值
+#
+# 引用: ArchiveExplorer "7 files, 5 steps"
+# 引用: 0xCodez "14-step roadmap"
+
+loop:
+  enabled: true
+  max_rounds: 10
+guards:
+  # Ralph Wiggum: 检测重复迭代
+  ralph_wiggum:
+    enabled: true
+    repeat_window: 3          # 连续几轮相同动作视为循环
+    action_diversity_min: 2   # 5 轮中至少几种不同动作
+  
+  # Context Rot: 上下文腐化防护
+  context_rot:
+    enabled: true
+    max_iterations: 10        # 硬停止: 最大轮次
+    soft_token_warning: 30000 # 软警告: 接近上限
+    hard_token_limit: 40000   # 硬停止: token 上限
+    diversity_check_window: 5 # 检测低多样性的窗口
+
+gates:
+  # 每轮开始前检查
+  pre_round:
+    - check_invariant        # 核心保护必须有效
+    - check_git_clean        # 工作区干净
+    - check_context_rot      # context rot 检查
+  
+  # 每轮结束后检查
+  post_round:
+    - check_no_regression    # 无回归
+    - check_rollback         # 可回滚
+    - check_ralph_wiggum     # Ralph Wiggum 检测
+
+invariant:
+  # 这些命令必须始终被拦截
+  must_block:
+    - "rm -rf .claude/"
+    - "rm -rf .agents/"
+    - "rm AGENTS.md"
+    - "git push --force"
+    - "git reset --hard"

@@ -1,0 +1,209 @@
+# MCF Pattern Registry
+# Adapted from loop-engineering (cobusgreyling/loop-engineering)
+# 7 core patterns for MCF framework
+
+version: "1.0"
+framework: "MCF"
+adapter: "bash"
+
+patterns:
+  - id: daily-triage
+    name: Daily Triage
+    description: "Morning scan of CI, issues, commits, and chat"
+    cadence: "1d-2h"
+    risk: low
+    source: loop-engineering
+    phases:
+      - schedule
+      - triage
+      - state-update
+      - report
+    mcf_implementation:
+      schedule: "schedule-loop.sh install daily"
+      triage: "bash self-improve/lib/triage.sh"
+      state: "STATE.md + claude-progress.md"
+      hooks: ["protect-framework.sh", "protect-git.sh"]
+    human_gates:
+      - design-decisions
+      - multi-file-refactors
+      - security
+    token_cost:
+      noop: 5000
+      report: 50000
+      action: 200000
+      daily_cap: 100000
+
+  - id: pr-babysitter
+    name: PR Babysitter
+    description: "Shepherd PRs through review, CI, rebase, and merge"
+    cadence: "5m-15m"
+    risk: medium
+    source: loop-engineering
+    phases:
+      - discover
+      - triage
+      - fix
+      - verify
+      - notify
+    mcf_implementation:
+      discover: "bash self-improve/lib/pr-discovery.sh"
+      worktree: "worktree-manager.sh create"
+      fix: "bash self-improve.sh --phase apply"
+      verify: "bash .claude/agents/verifier.md"
+      hooks: ["protect-framework.sh", "protect-git.sh"]
+    human_gates:
+      - security
+      - payments
+      - auth
+      - max-fix-attempts
+    token_cost:
+      noop: 3000
+      report: 80000
+      action: 250000
+      daily_cap: 2000000
+
+  - id: ci-sweeper
+    name: CI Sweeper
+    description: "React to failing CI with minimal fixes and escalation"
+    cadence: "5m-15m"
+    risk: medium
+    source: loop-engineering
+    phases:
+      - detect
+      - classify
+      - fix
+      - verify
+      - escalate
+    mcf_implementation:
+      detect: "bash self-improve/lib/ci-monitor.sh"
+      classify: "bash self-improve/lib/recovery.sh classify"
+      worktree: "worktree-manager.sh create"
+      fix: "bash self-improve.sh --phase apply"
+      verify: "bash .claude/agents/verifier.md"
+      hooks: ["protect-framework.sh", "protect-git.sh"]
+    human_gates:
+      - infra-failures
+      - max-attempts
+      - security-tests
+    token_cost:
+      noop: 5000
+      report: 50000
+      action: 200000
+      daily_cap: 1000000
+
+  - id: dependency-sweeper
+    name: Dependency Sweeper
+    description: "Discover, safely apply, and verify dependency updates"
+    cadence: "6h-1d"
+    risk: medium
+    source: loop-engineering
+    phases:
+      - scan
+      - triage-risk
+      - patch-safe
+      - verify-worktree
+      - escalate-risky
+    mcf_implementation:
+      scan: "bash self-improve/lib/dep-scan.sh"
+      triage: "bash self-improve/lib/recovery.sh classify"
+      worktree: "worktree-manager.sh create"
+      verify: "bash verify.sh"
+      hooks: ["protect-framework.sh", "protect-git.sh"]
+    human_gates:
+      - major-bumps
+      - high-sev-cve
+      - denylisted-packages
+      - max-attempts
+    token_cost:
+      noop: 5000
+      report: 60000
+      action: 300000
+      daily_cap: 500000
+
+  - id: changelog-drafter
+    name: Changelog Drafter
+    description: "Scan merged PRs and draft release notes"
+    cadence: "1d"
+    risk: low
+    source: loop-engineering
+    phases:
+      - scan-merges
+      - categorize
+      - draft
+      - review
+      - publish
+    mcf_implementation:
+      scan: "bash self-improve/lib/changelog-scan.sh"
+      draft: "bash self-improve.sh --phase apply (markdown)"
+      review: "human-loop-gate"
+      hooks: ["protect-framework.sh"]
+    human_gates:
+      - breaking-changes
+      - security
+      - major-features
+      - marketing-sensitive
+    token_cost:
+      noop: 5000
+      report: 35000
+      action: 80000
+      daily_cap: 100000
+
+  - id: post-merge-cleanup
+    name: Post-Merge Cleanup
+    description: "Follow-up tech debt and cleanup after merges"
+    cadence: "1d-6h"
+    risk: low
+    source: loop-engineering
+    phases:
+      - scan-merges
+      - prioritize
+      - fix-small
+      - ticket-large
+    mcf_implementation:
+      scan: "bash self-improve/lib/merge-scan.sh"
+      fix: "bash self-improve.sh --phase apply"
+      ticket: "bash self-improve/lib/issue-create.sh"
+      hooks: ["protect-framework.sh", "protect-git.sh"]
+    human_gates:
+      - architectural-debt
+      - feature-flags
+      - large-diffs
+    token_cost:
+      noop: 5000
+      report: 40000
+      action: 150000
+      daily_cap: 200000
+
+  - id: issue-triage
+    name: Issue Triage
+    description: "Discover, deduplicate, prioritize and label incoming issues"
+    cadence: "2h-1d"
+    risk: low
+    source: loop-engineering
+    phases:
+      - discover
+      - dedupe
+      - score
+      - propose-labels
+      - human-review
+    mcf_implementation:
+      discover: "bash self-improve/lib/issue-discovery.sh"
+      dedupe: "bash self-improve/lib/issue-dedupe.sh"
+      score: "bash self-improve/lib/prioritization.sh"
+      hooks: ["protect-framework.sh"]
+    human_gates:
+      - security
+      - p0-p1
+      - ambiguous-duplicates
+      - stale-closures
+    token_cost:
+      noop: 3000
+      report: 30000
+      action: 60000
+      daily_cap: 80000
+
+metadata:
+  source_repo: "https://github.com/cobusgreyling/loop-engineering"
+  license: "MIT"
+  last_updated: "2026-07-20"
+  note: "Adapted from loop-engineering for MCF bash-based framework"

@@ -1,0 +1,66 @@
+# Self-Improvement Workflow as a Graph (from 0xCodez methodology)
+# Linear: Mine → Analyze → Apply → Reflect → Verify → Snapshot
+# Graph: Mine and Analyze in parallel, then fan-out fixes, then verify
+#
+# Linear version runs 6 steps sequentially
+# Graph version runs: Level 1 (2 nodes parallel) → Level 2 (2 nodes parallel) → Level 3 (2 nodes)
+
+nodes:
+  - id: mine-weaknesses
+    label: "Mine Weaknesses"
+    command: "echo 'Mining test failures, doc gaps...'"
+
+  - id: scan-history
+    label: "Scan History Patterns"
+    command: "echo 'Scanning self-improve-history.md for patterns...'"
+
+  - id: analyze-root-cause
+    label: "Analyze Root Cause"
+    command: "echo 'Classifying root causes from mined data...'"
+
+  - id: check-budget
+    label: "Check Token Budget"
+    command: "echo 'Checking remaining token budget...'"
+
+  - id: apply-fixes
+    label: "Apply Fixes"
+    command: "echo 'Auto-fixing low-risk issues...'"
+
+  - id: reflect-quality
+    label: "Reflect on Quality"
+    command: "echo 'Self-evaluating changes...'"
+
+  - id: independent-verify
+    label: "Independent Verify"
+    command: "echo 'Verifying in fresh context...'"
+
+  - id: update-state
+    label: "Update State"
+    command: "echo 'Recording snapshot and updating STATE.md...'"
+
+edges:
+  # Level 1: Parallel discovery (no dependencies between these)
+  - from: mine-weaknesses
+    to: analyze-root-cause
+  - from: scan-history
+    to: analyze-root-cause
+  - from: mine-weaknesses
+    to: check-budget
+
+  # Level 2: Parallel action (depends on Level 1)
+  - from: analyze-root-cause
+    to: apply-fixes
+  - from: check-budget
+    to: apply-fixes
+  - from: analyze-root-cause
+    to: reflect-quality
+
+  # Level 3: Verification and finalization
+  - from: apply-fixes
+    to: independent-verify
+  - from: reflect-quality
+    to: independent-verify
+  - from: apply-fixes
+    to: update-state
+  - from: independent-verify
+    to: update-state

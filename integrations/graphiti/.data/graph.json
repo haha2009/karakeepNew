@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "name": "User",
+      "mentions": 1,
+      "first_seen": "2026-07-21T01:11:30.521008Z",
+      "last_seen": "2026-07-21T01:11:30.521008Z"
+    },
+    "Alice": {
+      "name": "Alice",
+      "mentions": 1,
+      "first_seen": "2026-07-21T01:11:30.521008Z",
+      "last_seen": "2026-07-21T01:11:30.521008Z"
+    },
+    "Bob": {
+      "name": "Bob",
+      "mentions": 1,
+      "first_seen": "2026-07-21T01:11:30.594802Z",
+      "last_seen": "2026-07-21T01:11:30.594802Z"
+    },
+    "Bug": {
+      "name": "Bug",
+      "mentions": 1,
+      "first_seen": "2026-07-21T01:11:30.594802Z",
+      "last_seen": "2026-07-21T01:11:30.594802Z"
+    }
+  },
+  "edges": {},
+  "episodes": [
+    {
+      "id": "ep-1784596290519",
+      "text": "User login with JWT by Alice",
+      "source": "dev",
+      "timestamp": "2026-07-21T01:11:30.521008Z",
+      "entities": [
+        "User",
+        "Alice"
+      ]
+    },
+    {
+      "id": "ep-1784596290593",
+      "text": "Bug fix token expiry by Bob",
+      "source": "fix",
+      "timestamp": "2026-07-21T01:11:30.594802Z",
+      "entities": [
+        "Bob",
+        "Bug"
+      ]
+    }
+  ]
+}

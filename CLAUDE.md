@@ -1,89 +1,59 @@
-# Karakeep — CLAUDE.md
+@AGENTS.md
+# CLAUDE.md — {{PROJECT_NAME}}
 
-> 本文件仅做快速入口。完整规范见 AGENTS.md（单点真理）。
+> 此文件仅补充项目专属配置。通用规则（Skills/PM 协作/编码标准）见 AGENTS.md。
 
-## 当前环境
+---
 
-- **版本**: v0.x (Monorepo, pnpm + Turborepo, tsx 直跑 TS)
-- **模型**: Claude Opus 4.6 (CLI 模式)
-- **数据目录**: `/var/lib/karakeep/data/` (生产) — 必保护，删除 = 数据丢失
-- **代码仓库 (本地)**: `/Users/claw/Projects/test/karakeep/`
-- **代码仓库 (服务器)**: `/home/ubuntu/src/`
+## 项目信息
 
-## 硬性约束
+- **技术栈**：{{TECH_STACK}}
+- **构建**：`{{BUILD_CMD}}`
 
-- **部署方式**: systemd + deploy.sh，不用 Docker / Dokku 部署 karakeep 本身
-- **Git 推送**: 本机可能无 SSH 密钥 → **优先 SCP 部署**，不是 `git push`
-- **Workers**: 用 tsx 直跑 TypeScript，没有编译步骤，改完 SCP + restart 即可
-- **生产目录**: `/opt/karakeep/apps/web/` = 临时构建产物，随时可重建
-- **代码仓库**: `/home/ubuntu/src/` = 唯一持久化源码（含 git history）
+---
 
-## 服务拓扑
+## Hooks
 
-```
-124.222.143.123 (Ubuntu + systemd)
-├── karakeep      (systemd, Next.js standalone @ :3000)
-├── karakeep-workers (systemd, tsx index.ts)
-├── Meilisearch   (Docker @ :7700)
-└── freellmapi    (Docker @ :3001, dokku managed)
-```
+> 本条规则 Agent **不能跳过**。CLAUDE.md 是软建议，Hooks 是硬拦截。
 
-## 核心命令速查（本地）
+`.claude/settings.json` 预装 3 个 Hook 脚本（2 PreToolUse + 1 SessionStart）：
 
-pnpm dev         — 启动所有 dev server
-pnpm typecheck   — 类型检查
-pnpm preflight   — typecheck + lint + format
-pnpm format:fix  — 自动格式化
-bash scripts/clean-workspace.sh --dry-run  — 预览清理
-bash scripts/clean-workspace.sh --force     — 执行清理
+| 操作类型 | 拦截时机 | 拦截效果 |
+|---|---|---|
+| `npx/yarn/pnpm/bunx skills add` / `npx @anthropic-ai` | PreToolUse Bash | exit 2，阻止执行 |
+| `git push --force` / `git reset --hard` / `git branch -D` | PreToolUse Bash | exit 2，阻止执行 |
+| `rm -rf .claude/` / `rm -rf .agents/` | PreToolUse Bash | exit 2，阻止执行 |
+| 删除/覆盖 `LOOP.md` / `STATE.md` / `gate.yaml` / `.env` / `CLAUDE.md` / `AGENTS.md` / `README.md` | PreToolUse Bash | exit 2，阻止执行 |
 
-## 部署命令（生产 SSH 124.222.143.123）
+**Hook 覆盖边界**：仅 Bash 工具。Edit/Write 工具不受 Hook 拦截——关键文件保护靠 AI 遵守 AGENTS.md 规则。
+---
 
-```bash
-# 一键部署（含自动备份，同时部署 web + workers）
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh rebuild
+## 设计质量
 
-# 健康快照（5 秒全局图）
-ssh ubuntu@124.222.143.123 /home/ubuntu/health.sh
+做 UI 相关改动必须按此顺序执行：
 
-# 单独重启（workers 改代码后不需要 rebuild）
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh restart
-# 或直接:
-ssh ubuntu@124.222.143.123 "sudo systemctl restart karakeep-workers"
+1. **读 [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)**
+2. **读 [docs/UIUX.md](docs/UIUX.md)**
+3. **找 3 个已有页面或组件** — 理解项目 UI 风格
+4. 编码
 
-# 查看状态
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh status
+> 如有前端设计技能，装到 `~/.claude/skills/`。
 
-# 回滚
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh rollback <commit>
+---
 
-# 查日志
-ssh ubuntu@124.222.143.123 /home/ubuntu/deploy.sh logs
+## Memory
 
-# ⚠️ 本机 git push 可能失败（SSH 密钥问题）→ 用 SCP
-scp <file> ubuntu@124.222.143.123:/home/ubuntu/src/<path>
-```
+- **`.memory/`** — 项目共享记忆（随 git 提交），所有 Agent 可见
+- **`~/.claude/projects/<hash>/memory/`** — 个人本地记忆（不提交）
 
-## 生产调试命令
+详见 [docs/MEMORY.md](docs/MEMORY.md)。
 
-```bash
-# 批量补爬失败书签
-ssh ubuntu@124.222.143.123
-cd /home/ubuntu/src/apps/workers
-DATA_DIR=/var/lib/karakeep/data /home/ubuntu/src/node_modules/.bin/tsx scripts/batchRecrawl.ts failure --limit=30
+---
 
-# 查 SQLite
-ssh ubuntu@124.222.143.123 "sqlite3 /var/lib/karakeep/data/db.db 'SELECT ...'"
+## 完成后协议
 
-# 查爬虫失败
-ssh ubuntu@124.222.143.123 "sudo journalctl -u karakeep-workers --grep='Crawling job failed' --since '1 hour ago'"
-```
-
-## 清理流程
-
-bash scripts/clean-workspace.sh --dry-run  # 预览
-bash scripts/clean-workspace.sh --force     # 执行
-pnpm preflight                              # 检查
-git add -A && git commit -m "..."           # 提交
-
-详细规范见 AGENTS.md，部署详情见 `.claude/deployment.md`，开发手册见 `.claude/dev-workflow.md`。
+1. 构建通过
+2. 测试通过
+3. 提交前清单全部打勾（见 [docs/WORKFLOW.md](docs/WORKFLOW.md)）
+4. 无硬编码密钥/密码
+5. 改动范围最小化
